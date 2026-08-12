@@ -1,0 +1,93 @@
+---
+id: java
+title: "Cheat Sheet: Java Collections, Streams & Concurrency"
+sidebar_label: Java
+sidebar_position: 1
+description: Quick reference for Java collections complexity, Stream operations, and concurrency primitives.
+---
+
+# Java Cheat Sheet
+
+<ProgressTracker id="cheat-java" />
+
+## Collections: pick the right one
+
+| Need | Use |
+| --- | --- |
+| Ordered list, fast index | `ArrayList` |
+| Stack / queue / deque | `ArrayDeque` |
+| Unique, no order | `HashSet` |
+| Unique, insertion order | `LinkedHashSet` |
+| Unique, sorted | `TreeSet` |
+| Key→value, fast | `HashMap` |
+| Key→value, insertion/access order (LRU) | `LinkedHashMap` |
+| Key→value, sorted | `TreeMap` |
+| Thread-safe map | `ConcurrentHashMap` |
+| Priority order | `PriorityQueue` |
+
+## Complexity
+
+| Op | ArrayList | LinkedList | HashMap | TreeMap |
+| --- | --- | --- | --- | --- |
+| get | O(1) | O(n) | O(1) | O(log n) |
+| add end | O(1)* | O(1) | O(1) | O(log n) |
+| contains | O(n) | O(n) | O(1) | O(log n) |
+
+\*amortized. `HashMap` averages are O(1); worst case O(log n) after treeification.
+
+## Streams
+
+```java
+list.stream()
+    .filter(x -> x.active())                 // keep matching
+    .map(X::name)                            // transform
+    .flatMap(x -> x.tags().stream())         // flatten
+    .distinct().sorted()                     // dedupe / order
+    .limit(10)                               // paginate
+    .collect(Collectors.toList());           // terminal
+
+// Grouping & aggregation
+map = s.collect(groupingBy(X::type));                       // Map<Type,List<X>>
+map = s.collect(groupingBy(X::type, counting()));           // Map<Type,Long>
+map = s.collect(groupingBy(X::type, summingInt(X::qty)));   // Map<Type,Integer>
+part = s.collect(partitioningBy(X::paid));                  // Map<Boolean,List<X>>
+sum = s.map(X::total).reduce(BigDecimal.ZERO, BigDecimal::add);
+byId = s.collect(toMap(X::id, x -> x));                     // Map<Id,X>
+```
+
+**Intermediate (lazy):** `filter, map, flatMap, distinct, sorted, limit, skip, peek`.
+**Terminal:** `collect, reduce, forEach, count, anyMatch, findFirst, toList`.
+
+## Functional interfaces
+
+| Interface | Shape |
+| --- | --- |
+| `Predicate<T>` | `T -> boolean` |
+| `Function<T,R>` | `T -> R` |
+| `Consumer<T>` | `T -> void` |
+| `Supplier<T>` | `() -> T` |
+| `BiFunction<T,U,R>` | `(T,U) -> R` |
+
+## Concurrency primitives
+
+| Tool | Use |
+| --- | --- |
+| `synchronized` | Mutual exclusion + visibility |
+| `volatile` | Visibility only (flags) |
+| `AtomicInteger`/`LongAdder` | Lock-free counters |
+| `ReentrantLock` | tryLock, timeout, fairness |
+| `ReadWriteLock` | Many readers / one writer |
+| `ConcurrentHashMap` | Shared map |
+| `BlockingQueue` | Producer/consumer |
+| `ExecutorService` | Thread pool |
+| `CompletableFuture` | Async composition |
+
+```java
+ExecutorService pool = Executors.newFixedThreadPool(8);
+Future<T> f = pool.submit(() -> work());
+T r = f.get(2, TimeUnit.SECONDS);
+
+CompletableFuture.supplyAsync(this::a, pool)
+    .thenCombine(CompletableFuture.supplyAsync(this::b, pool), this::merge)
+    .exceptionally(ex -> fallback());
+```

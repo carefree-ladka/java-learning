@@ -1,0 +1,211 @@
+---
+id: configuration-and-profiles
+title: Configuration & Profiles
+sidebar_label: Configuration & Profiles
+sidebar_position: 2
+description: Externalized configuration in Spring Boot — property sources and precedence, @ConfigurationProperties, profiles, environment variables, and secrets.
+---
+
+# Configuration & Profiles
+
+Twelve-factor apps keep configuration **out of code** and in the environment. Spring Boot
+has a rich, layered configuration system — this page covers where values come from, how
+to bind them type-safely, and how to vary them per environment.
+
+<ProgressTracker id="spring-boot-config" />
+
+## Table of Contents
+
+- [Property sources & precedence](#property-sources--precedence)
+- [@Value vs @ConfigurationProperties](#value-vs-configurationproperties)
+- [Type-safe configuration properties](#type-safe-configuration-properties)
+- [Profiles](#profiles)
+- [Environment variables & relaxed binding](#environment-variables--relaxed-binding)
+- [Secrets](#secrets)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Property sources & precedence
+
+Spring Boot merges many sources; later ones **override** earlier ones. Highest priority
+first (abridged):
+
+```mermaid
+flowchart TD
+  A[Command-line args<br/>--server.port=9090] --> B[OS environment variables]
+  B --> C[application-{profile}.yml]
+  C --> D[application.yml]
+  D --> E[Defaults in code / @Value defaults]
+```
+
+<Important>
+Precedence lets you set a default in `application.yml`, override it per environment with a
+profile file, and override *that* at deploy time with an environment variable or
+command-line arg — without recompiling. This is the backbone of 12-factor configuration.
+</Important>
+
+## @Value vs @ConfigurationProperties
+
+```java
+// @Value: quick single value; no validation, no IDE support, easy to typo
+@Value("${app.payment.timeout:5s}")   // ':' gives a default
+private Duration timeout;
+```
+
+<Warning>
+`@Value` is fine for a one-off, but for anything with multiple related keys prefer
+`@ConfigurationProperties` — it's type-safe, validated, refactor-friendly, and groups
+related settings. Scattered `@Value` strings are a maintenance headache.
+</Warning>
+
+## Type-safe configuration properties
+
+```yaml title="application.yml"
+app:
+  payment:
+    base-url: https://api.stripe.com
+    timeout: 5s
+    max-retries: 3
+    currencies: [USD, EUR, GBP]
+```
+
+```java
+@ConfigurationProperties(prefix = "app.payment")
+@Validated
+public record PaymentProperties(
+    @NotBlank String baseUrl,
+    Duration timeout,           // "5s" -> Duration, automatically
+    @Min(0) int maxRetries,
+    List<String> currencies
+) {}
+
+// Enable binding (or annotate the class with @ConfigurationPropertiesScan on the app)
+@EnableConfigurationProperties(PaymentProperties.class)
+@Configuration
+class PaymentConfig { }
+
+// Inject the typed object anywhere
+@Service
+class PaymentService {
+    private final PaymentProperties props;
+    PaymentService(PaymentProperties props) { this.props = props; }
+}
+```
+
+<Tip>
+`@Validated` on a `@ConfigurationProperties` class makes the app **fail fast at startup**
+if config is missing or invalid — far better than a `NullPointerException` in production.
+Boot also converts types (`Duration`, `DataSize`, enums, lists) for free.
+</Tip>
+
+## Profiles
+
+Profiles activate different beans and property values per environment.
+
+```yaml title="application.yml (multi-document)"
+spring:
+  jpa:
+    show-sql: true          # default (dev-friendly)
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false         # quiet in prod
+```
+
+```java
+@Profile("prod")
+@Configuration
+class ProdOnlyConfig {          // beans only when 'prod' is active
+    @Bean CacheManager redisCacheManager() { ... }
+}
+
+@Profile("!prod")               // everything except prod
+@Bean CacheManager simpleCacheManager() { ... }
+```
+
+Activate with (highest wins):
+
+```bash
+java -jar app.jar --spring.profiles.active=prod
+# or
+export SPRING_PROFILES_ACTIVE=prod
+```
+
+## Environment variables & relaxed binding
+
+Spring Boot maps environment variables to properties with **relaxed binding**: uppercase
+and underscores map to dotted, kebab, or camelCase keys.
+
+```text
+SPRING_DATASOURCE_URL         ->  spring.datasource.url
+APP_PAYMENT_BASE_URL          ->  app.payment.base-url
+```
+
+```bash
+docker run -e SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/shop \
+           -e SPRING_PROFILES_ACTIVE=prod  myapp:1.0
+```
+
+## Secrets
+
+<Warning>
+Never commit real secrets in `application.yml` or bake them into an image (they persist
+in layers and git history). Inject them at runtime:
+- Environment variables (`SPRING_DATASOURCE_PASSWORD`).
+- A secrets manager: AWS Secrets Manager, HashiCorp Vault (Spring Cloud Vault),
+  Kubernetes Secrets mounted as env vars or files.
+- Reference them via placeholders: `password: ${DB_PASSWORD}` (fails fast if unset).
+</Warning>
+
+```yaml
+spring:
+  datasource:
+    password: ${DB_PASSWORD}     # sourced from the environment/secret store, not the file
+```
+
+## Common mistakes
+
+<Warning>
+- Hard-coding secrets or environment-specific URLs in committed config.
+- Overusing `@Value` where `@ConfigurationProperties` would be safer.
+- Forgetting `@Validated`, so bad config surfaces as a runtime NPE, not a startup failure.
+- Assuming a profile is active — always log the active profiles on startup.
+- Using `ddl-auto: update` in prod instead of Flyway/Liquibase migrations.
+</Warning>
+
+## Interview questions
+
+**Q: How does externalized configuration and precedence work?**
+Boot merges property sources; command-line args and environment variables override
+profile files, which override `application.yml`, which overrides code defaults.
+
+**Q: `@Value` vs `@ConfigurationProperties`?**
+`@Value` binds a single key (no validation); `@ConfigurationProperties` binds a group of
+keys to a typed, validated object — preferred for real config.
+
+**Q: How do profiles work?**
+They gate beans (`@Profile`) and property values (`on-profile`) per environment, activated
+via `spring.profiles.active`.
+
+**Q: Where do secrets belong?**
+In the environment or a secrets manager, injected at runtime — never in code or images.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Property-source precedence (args > env > profile file > application.yml).
+- `@ConfigurationProperties` + `@Validated` for type-safe, fail-fast config.
+- Profiles for per-environment beans/values.
+
+### 🟡 Good to Know
+- Relaxed binding of env vars; placeholder defaults `${X:default}`.
+- Secrets via env/Vault/K8s, never committed.
+
+### 🟢 Nice to Know
+- `spring.config.import` for external/remote config; Spring Cloud Config.
+- Config metadata for IDE autocompletion.

@@ -1,0 +1,11 @@
+{
+  "label": "Core Concepts",
+  "position": 1,
+  "collapsible": true,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "title": "System Design — Core Concepts",
+    "description": "The building blocks every backend system design draws on: architecture, databases, caching, load balancing, distributed systems, messaging, reliability, security, storage, CDN, observability, deployment, patterns, and algorithms."
+  }
+}

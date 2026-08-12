@@ -1,0 +1,207 @@
+---
+id: index
+title: Modern Java (8+)
+sidebar_label: Overview
+sidebar_position: 0
+slug: /java-8-plus/
+description: Lambdas, functional interfaces, the Stream API, Optional, records, sealed classes, pattern matching, and virtual threads.
+---
+
+# Modern Java (8+)
+
+From Java 8 onward the language became far more expressive. Modern Spring code is
+lambda- and stream-heavy, records are the default DTO, and virtual threads are
+reshaping how backends handle concurrency.
+
+<ProgressTracker id="java8-overview" />
+
+## Table of Contents
+
+- [Lambda expressions](#lambda-expressions)
+- [Functional interfaces](#functional-interfaces)
+- [Method references](#method-references)
+- [Optional](#optional)
+- [Records](#records)
+- [Sealed classes](#sealed-classes)
+- [Pattern matching & switch expressions](#pattern-matching--switch-expressions)
+- [Virtual threads](#virtual-threads)
+- [Topics in this section](#topics-in-this-section)
+- [Most Asked Interview Questions](#most-asked-interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Lambda expressions
+
+A lambda is a concise anonymous function — an implementation of a functional
+interface (one abstract method).
+
+```java
+Runnable r = () -> System.out.println("run");
+Comparator<String> byLen = (a, b) -> Integer.compare(a.length(), b.length());
+list.forEach(item -> process(item));
+```
+
+## Functional interfaces
+
+An interface with exactly one abstract method. The `java.util.function` package
+ships the essentials:
+
+| Interface | Signature | Use |
+| --- | --- | --- |
+| `Predicate<T>` | `T -> boolean` | filtering, conditions |
+| `Function<T,R>` | `T -> R` | transformation/mapping |
+| `Consumer<T>` | `T -> void` | side effects |
+| `Supplier<T>` | `() -> T` | lazy creation |
+| `BiFunction<T,U,R>` | `(T,U) -> R` | two-arg transform |
+| `UnaryOperator<T>` | `T -> T` | same-type transform |
+
+```java
+Predicate<User> isActive = User::isActive;
+Function<User, String> toEmail = User::getEmail;
+Supplier<Instant> now = Instant::now;
+Consumer<String> logIt = log::info;
+```
+
+## Method references
+
+Shorthand for lambdas that just call an existing method.
+
+```java
+users.stream().map(User::getEmail)      // instance method of the element
+users.forEach(System.out::println)      // instance method of an object
+list.stream().filter(Objects::nonNull)  // static method
+Supplier<List<String>> s = ArrayList::new;  // constructor reference
+```
+
+## Optional
+
+`Optional<T>` models "a value that might be absent", replacing null-returning
+methods with an explicit, chainable type.
+
+```java
+public Optional<User> findByEmail(String email) { ... }
+
+String name = findByEmail(email)
+    .map(User::getName)
+    .orElse("guest");
+
+User user = findByEmail(email)
+    .orElseThrow(() -> new UserNotFoundException(email));
+```
+
+<Warning>
+Use `Optional` for **return types**, not fields or method parameters. Don't call
+`.get()` without checking — use `map`/`orElse`/`orElseThrow`. And never wrap a
+collection in `Optional`; return an empty collection instead.
+</Warning>
+
+## Records
+
+Immutable data carriers with generated constructor, accessors, `equals`,
+`hashCode`, and `toString`. The default for DTOs and value objects.
+
+```java
+public record OrderDto(Long id, String status, BigDecimal total) { }
+
+// Compact canonical constructor for validation
+public record Email(String value) {
+    public Email {
+        if (!value.contains("@")) throw new IllegalArgumentException("bad email");
+    }
+}
+```
+
+## Sealed classes
+
+Restrict which types may extend/implement a type — perfect for modeling a closed
+set of variants that pattern matching can exhaustively check.
+
+```java
+public sealed interface PaymentResult
+    permits Approved, Declined, Pending { }
+
+public record Approved(String txId) implements PaymentResult { }
+public record Declined(String reason) implements PaymentResult { }
+public record Pending(String ref) implements PaymentResult { }
+```
+
+## Pattern matching & switch expressions
+
+```java
+String describe(PaymentResult result) {
+    return switch (result) {                 // exhaustive over the sealed type
+        case Approved a -> "ok: " + a.txId();
+        case Declined d -> "declined: " + d.reason();
+        case Pending p  -> "pending: " + p.ref();
+    };
+}
+```
+
+`instanceof` pattern matching removes casts:
+
+```java
+if (obj instanceof String s && !s.isBlank()) {
+    return s.trim();
+}
+```
+
+## Virtual threads
+
+Virtual threads (Java 21) are lightweight threads managed by the JVM. You can run
+millions of them, so the "one thread per request" model scales without async
+complexity — ideal for I/O-bound backends.
+
+```java
+try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+    executor.submit(() -> callSlowService());   // blocking is cheap here
+}
+```
+
+<Backend>
+Virtual threads make blocking JDBC/HTTP calls scalable again: a blocked virtual
+thread parks and frees its carrier OS thread. In Spring Boot 3.2+ you enable them
+with `spring.threads.virtual.enabled=true`.
+</Backend>
+
+## Topics in this section
+
+<div className="jbm-card-grid">
+  <Link className="jbm-card" to="/docs/java-8-plus/streams">
+    <div className="jbm-card__icon">🌊</div>
+    <h3>Stream API Deep Dive</h3>
+    <p>map, filter, flatMap, reduce, collect, groupingBy, and when NOT to use streams.</p>
+  </Link>
+</div>
+
+## Most Asked Interview Questions
+
+### Beginner
+- What is a lambda and a functional interface?
+- What problem does `Optional` solve?
+
+### Intermediate
+- `map` vs `flatMap`?
+- What are records and what do they generate?
+- Intermediate vs terminal stream operations?
+
+### Advanced
+- How do sealed classes enable exhaustive pattern matching?
+- How do virtual threads differ from platform threads?
+
+### Coding
+- Group a list of orders by status and sum totals using `Collectors`.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Lambdas, the four core functional interfaces, method references.
+- `Optional` for return types.
+- Records for DTOs/value objects.
+- Basic Stream pipeline.
+
+### 🟡 Good to Know
+- Sealed classes + pattern-matching switch.
+- Virtual threads and `spring.threads.virtual.enabled`.
+
+### 🟢 Nice to Know
+- `Collectors.teeing`, custom collectors.
+- Structured concurrency (preview).

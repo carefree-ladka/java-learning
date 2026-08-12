@@ -1,0 +1,92 @@
+---
+id: backend
+title: "Cheat Sheet: JPA, Redis, Kafka, Docker, Git & System Design"
+sidebar_label: Backend Toolkit
+sidebar_position: 5
+description: The rest of the backend toolkit — JPA, Spring Security, Redis, Kafka, Docker, Git, and system design — in one page.
+---
+
+# Backend Toolkit Cheat Sheet
+
+<ProgressTracker id="cheat-backend" />
+
+## JPA / Hibernate
+
+- Default fetch: `@ManyToOne`/`@OneToOne` = EAGER, `@OneToMany`/`@ManyToMany` = LAZY.
+  Force `@ManyToOne` LAZY.
+- Owning side holds the FK; inverse uses `mappedBy`.
+- Fix N+1 with `JOIN FETCH`, `@EntityGraph`, or `default_batch_fetch_size`.
+- `@Transactional`: rolls back on `RuntimeException`; self-invocation bypasses the proxy.
+- Optimistic lock via `@Version`; pessimistic via `SELECT ... FOR UPDATE`.
+- Prefer `SEQUENCE` over `IDENTITY` for batchable inserts.
+
+## Spring Security
+
+- Filter chain → authenticate → authorize.
+- BCrypt for passwords (`PasswordEncoder`).
+- Stateless JWT: `SessionCreationPolicy.STATELESS`, token in `Authorization: Bearer`.
+- Disable CSRF only for token-based stateless APIs; keep it for cookie sessions.
+- Short access tokens + revocable refresh tokens.
+
+## Redis
+
+| Command | Use |
+| --- | --- |
+| `SET k v EX 60` | Value with 60s TTL |
+| `GET k` / `DEL k` | Read / delete |
+| `INCR k` | Atomic counter (rate limiting) |
+| `SET k v NX PX 30000` | Distributed lock (set-if-absent + TTL) |
+| `HSET` / `HGETALL` | Object fields |
+| `ZADD` / `ZRANGE` | Sorted sets (leaderboards, sliding windows) |
+| `EXPIRE k 60` | Set TTL |
+
+Patterns: cache-aside + TTL; evict on write; beware penetration/stampede/avalanche.
+
+## Kafka
+
+- Topic → partitions → offsets; ordering is per-partition (key routes the record).
+- Consumer group shares partitions (scale ≤ partition count); different groups = fan-out.
+- `acks=all` for durability; `enable-auto-commit=false`, commit after processing.
+- At-least-once + idempotent consumers is the practical default; DLT for poison messages.
+
+```java
+@KafkaListener(topics = "orders", groupId = "billing")
+void on(OrderEvent e) { if (seen(e.id())) return; process(e); }
+```
+
+## Docker
+
+```bash
+docker build -t app:1.0 .
+docker run -p 8080:8080 -e SPRING_PROFILES_ACTIVE=prod app:1.0
+docker compose up -d        # multi-container
+docker logs -f <id>
+docker exec -it <id> sh
+docker compose down -v      # stop + remove volumes
+```
+
+- Multi-stage: JDK build stage → slim JRE runtime stage.
+- Run as non-root; set `-XX:MaxRAMPercentage` for container memory.
+- Use volumes for DB data; reach other containers by service name.
+
+## Git
+
+```bash
+git checkout -b feature/x          # new branch
+git add <files> && git commit -m "msg"
+git push -u origin feature/x       # push new branch
+git pull --rebase                  # update, linear history
+git log --oneline --graph          # visual history
+git restore --staged <file>        # unstage
+git revert <sha>                   # undo a commit safely
+```
+
+## System design quick rules
+
+- Read-heavy → cache + read replicas + CDN.
+- Write-heavy → shard + queues + async.
+- Cross-service consistency → idempotency + saga + outbox.
+- CAP: during a partition choose consistency **or** availability.
+- Reliability → timeouts, retries (backoff+jitter), circuit breakers, DLTs.
+- Big files → object storage + pre-signed URLs.
+- Always estimate QPS/storage before drawing the architecture.

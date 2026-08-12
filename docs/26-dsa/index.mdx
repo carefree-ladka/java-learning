@@ -1,0 +1,132 @@
+---
+id: index
+title: DSA with Java
+sidebar_label: Overview
+sidebar_position: 0
+slug: /dsa/
+description: A topic-wise data structures and algorithms roadmap in Java — patterns, brute-force vs optimal code, complexity, and curated NeetCode 150 / Blind 75 problems.
+---
+
+# DSA with Java
+
+Data structures and algorithms are how you pass the coding round. This track is
+**pattern-first**: learn the handful of patterns that unlock most problems, code each
+one in idiomatic Java, and always compare the **brute-force** and **optimal**
+approaches so you know *why* the optimal works.
+
+<ProgressTracker id="dsa-overview" />
+
+## Table of Contents
+
+- [How to use this track](#how-to-use-this-track)
+- [The problem sets](#the-problem-sets)
+- [Complexity primer](#complexity-primer)
+- [The roadmap](#the-roadmap)
+- [Topics](#topics)
+- [Things You Should Know](#things-you-should-know)
+
+## How to use this track
+
+1. Start with the [Java DSA Foundation](/docs/dsa/foundation/) — the collections and
+   language features every solution uses.
+2. Go **topic by topic** in order. Arrays → Strings → Hashing first; they underpin
+   everything.
+3. For each problem, write the **brute force** first (get *a* solution), then optimize
+   with the pattern. Interviewers want to see that progression.
+4. Track complexity for every solution — time **and** space.
+
+<Important>
+Do not memorize solutions. Memorize **patterns**: two pointers, sliding window, prefix
+sum, binary search on the answer, backtracking, BFS/DFS, and the DP transitions.
+Roughly 15 patterns cover the vast majority of interview questions.
+</Important>
+
+## The problem sets
+
+Practice against the two industry-standard curated lists — they're ordered, deduped,
+and cover every pattern here:
+
+- **[Blind 75](https://neetcode.io/practice?tab=blind75)** — the classic 75-problem
+  list. Do this first; it's the minimum bar.
+- **[NeetCode 150](https://neetcode.io/practice?tab=neetcode150)** — Blind 75 plus 75
+  more for fuller pattern coverage.
+- Problem links throughout this track point to **[LeetCode](https://leetcode.com/)**.
+
+<Tip>
+Aim for Blind 75 fully solved before interviews, then extend to NeetCode 150. Quality
+over quantity — 150 problems you can re-derive beats 500 you memorized.
+</Tip>
+
+## Complexity primer
+
+Every solution is judged on **time** and **space** complexity (Big-O = worst-case
+growth as input `n` grows).
+
+| Big-O | Name | Example |
+| --- | --- | --- |
+| O(1) | Constant | HashMap get, array index |
+| O(log n) | Logarithmic | Binary search |
+| O(n) | Linear | Single loop |
+| O(n log n) | Linearithmic | Efficient sorts, heap of n items |
+| O(n²) | Quadratic | Nested loops (brute-force pair scan) |
+| O(2ⁿ) | Exponential | Subsets, naive recursion |
+| O(n!) | Factorial | Permutations |
+
+<Important>
+The most common interview win is turning an **O(n²)** brute force into **O(n)** or
+**O(n log n)** using a hash map, two pointers, sliding window, sorting, or binary
+search. Recognizing that jump is the whole game.
+</Important>
+
+## The roadmap
+
+```mermaid
+flowchart TD
+  F[Foundation: Collections + Big-O] --> A[Arrays]
+  A --> S[Strings] --> H[Hashing]
+  H --> LL[Linked List] --> SQ[Stack & Queue]
+  SQ --> BS[Binary Search] --> RB[Recursion & Backtracking]
+  RB --> T[Trees] --> HP[Heap] --> TR[Trie]
+  TR --> G[Graphs] --> GA[Graph Algorithms]
+  GA --> SO[Sorting] --> GI[Greedy & Intervals]
+  GI --> DP[Dynamic Programming]
+  DP --> BM[Bit Manipulation] --> MA[Math] --> ADV[Advanced Structures]
+```
+
+## Topics
+
+<div className="jbm-card-grid">
+  <Link className="jbm-card" to="/docs/dsa/foundation"><div className="jbm-card__icon">🧰</div><h3>0. Foundation</h3><p>Collections, equals/hashCode, comparators, Big-O.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/arrays"><div className="jbm-card__icon">🔢</div><h3>1. Arrays</h3><p>Two pointers, sliding window, prefix sum, Kadane, binary search.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/strings"><div className="jbm-card__icon">🔤</div><h3>2. Strings</h3><p>Palindrome, anagram, substring windows.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/hashing"><div className="jbm-card__icon">🗂️</div><h3>3. Hashing</h3><p>Frequency, complement, prefix-sum + map, grouping.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/linked-list"><div className="jbm-card__icon">🔗</div><h3>4. Linked List</h3><p>Fast/slow, reversal, dummy node, merge.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/stack-queue"><div className="jbm-card__icon">🥞</div><h3>5. Stack & Queue</h3><p>Monotonic stack/queue, expression parsing.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/binary-search"><div className="jbm-card__icon">🎯</div><h3>6. Binary Search</h3><p>Boundaries, rotated arrays, search on the answer.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/recursion-backtracking"><div className="jbm-card__icon">🌀</div><h3>7. Recursion & Backtracking</h3><p>Subsets, permutations, combinations, N-Queens.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/trees"><div className="jbm-card__icon">🌳</div><h3>8. Trees</h3><p>DFS/BFS traversals, BST, LCA, path sums.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/heap"><div className="jbm-card__icon">⛰️</div><h3>9. Heap / Priority Queue</h3><p>Top-K, two heaps, merge-K, scheduling.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/trie"><div className="jbm-card__icon">🌲</div><h3>10. Trie</h3><p>Insert/search/startsWith, word search, autocomplete.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/graphs"><div className="jbm-card__icon">🕸️</div><h3>11. Graphs</h3><p>BFS/DFS, components, cycles, topological sort.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/graph-algorithms"><div className="jbm-card__icon">🛰️</div><h3>12. Graph Algorithms</h3><p>Dijkstra, Bellman-Ford, Floyd-Warshall, MST, DSU.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/sorting"><div className="jbm-card__icon">📊</div><h3>13. Sorting</h3><p>Merge, quick, heap, counting; Java comparators.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/greedy-intervals"><div className="jbm-card__icon">💰</div><h3>14. Greedy & Intervals</h3><p>Interval scheduling, merge intervals, jump game.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/dynamic-programming"><div className="jbm-card__icon">🧠</div><h3>15. Dynamic Programming</h3><p>1D, knapsack, grid, string, LIS, interval, tree DP.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/bit-manipulation"><div className="jbm-card__icon">🔟</div><h3>16. Bit Manipulation</h3><p>XOR tricks, masks, power of two.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/math"><div className="jbm-card__icon">➗</div><h3>17. Math & Number Theory</h3><p>GCD, sieve, fast exponentiation, modular arithmetic.</p></Link>
+  <Link className="jbm-card" to="/docs/dsa/advanced-data-structures"><div className="jbm-card__icon">🏛️</div><h3>18. Advanced Structures</h3><p>Segment tree, Fenwick/BIT, sparse table, bitwise trie.</p></Link>
+</div>
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Big-O for time and space; the O(n²) → O(n)/O(n log n) jump.
+- The core patterns: two pointers, sliding window, prefix sum, binary search, BFS/DFS, backtracking, DP.
+- Java collections and when to use each ([Foundation](/docs/dsa/foundation/)).
+
+### 🟡 Good to Know
+- Brute-force first, then optimize — and articulate the trade-off.
+- Blind 75 → NeetCode 150 progression.
+
+### 🟢 Nice to Know
+- Advanced structures (segment tree, BIT) for competitive/rare interview needs.

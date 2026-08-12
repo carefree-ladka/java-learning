@@ -1,0 +1,392 @@
+---
+id: level-2-intermediate
+title: "Level 2 — Intermediate (Q58–146)"
+sidebar_label: 🟡 Level 2 — Intermediate
+sidebar_position: 2
+description: Intermediate Java backend interview questions (2–4 years) — collections internals, Java 8, advanced OOP, memory, multithreading, Spring, DI, REST, JPA, and testing.
+---
+
+# Level 2 — Intermediate (Q58–146)
+
+For **2–4 years** experience. This tier is about *internals* and *why* — the answers that
+separate a coder from an engineer.
+
+<ProgressTracker id="iq-level-2" />
+
+## Advanced collections (58–70)
+
+**58. The `hashCode()`/`equals()` contract.**
+Equal objects must have equal hash codes; override both together or hash collections
+break. See [equals & hashCode](/docs/oop/equals-hashcode/).
+
+**59. How does HashMap work internally?**
+Bucket array; key `hashCode` (bit-spread) picks the bucket; collisions chain then treeify
+past 8; resizes at 0.75 load factor. See [HashMap Internals](/docs/collections/hashmap-internals/).
+
+**60. HashMap collision — how resolved?**
+Separate chaining: entries in the same bucket form a linked list, converted to a red-black
+tree when the chain exceeds 8 (and capacity ≥ 64).
+
+**61. What is load factor? Default?**
+Fullness threshold before resizing; default `0.75`. Resize doubles capacity and rehashes.
+
+**62. HashMap vs LinkedHashMap vs TreeMap.**
+Unordered O(1); insertion/access-order O(1); sorted O(log n) respectively. `LinkedHashMap`
+(access order) powers LRU caches.
+
+**63. HashMap vs ConcurrentHashMap.**
+`ConcurrentHashMap` is thread-safe with bucket-level locking, no nulls; `HashMap` is
+single-thread only, one null key. See [details](/docs/collections/hashmap-internals/#concurrenthashmap).
+
+**64. Convert a HashMap to an ArrayList.**
+`new ArrayList<>(map.keySet())`, `map.values()`, or
+`map.entrySet().stream().map(...).toList()`.
+
+**65. Comparable vs Comparator.**
+`Comparable` = one natural order in the class (`compareTo`); `Comparator` = external,
+multiple orders. See [Comparable & Comparator](/docs/collections/comparable-comparator/).
+
+**66. ConcurrentHashMap internals / segmentation.**
+Java 8+ uses per-bucket CAS + synchronized on the head node (not the old segment locks),
+allowing concurrent reads and fine-grained writes.
+
+**67. Hashtable vs ConcurrentHashMap — which is better?**
+`ConcurrentHashMap` — it locks per bucket instead of the whole map, so it scales far
+better. `Hashtable` is legacy.
+
+**68. Vector vs ArrayList.**
+`Vector` is synchronized (slow, legacy); `ArrayList` is not. Use `ArrayList`, or a
+concurrent collection when thread safety is needed.
+
+**69. HashMap vs Hashtable.**
+`HashMap` allows one null key/null values, not synchronized; `Hashtable` no nulls,
+synchronized, legacy.
+
+**70. ArrayList vs LinkedList — operation performance.**
+Random access: ArrayList O(1) vs LinkedList O(n). End insert: both O(1). Middle insert:
+both O(n). ArrayList wins for cache locality. See [list internals](/docs/collections/list-internals/).
+
+## Java 8 features (71–79)
+
+**71. What is a functional interface? Examples.**
+An interface with one abstract method (`Runnable`, `Comparator`, `Function`,
+`Predicate`). Enables lambdas. See [Modern Java](/docs/java-8-plus/#functional-interfaces).
+
+**72. Major Java 8 features.**
+Lambdas, functional interfaces, Stream API, `Optional`, default/static interface methods,
+method references, new Date/Time API.
+
+**73. `map()` vs `flatMap()`.**
+`map` is 1→1; `flatMap` is 1→stream and flattens nested structures. See
+[Streams](/docs/java-8-plus/streams/#map-vs-flatmap).
+
+**74. Advantages of the Stream API.**
+Declarative, composable, lazy, easy parallelism, and less boilerplate than loops for
+transform/filter/aggregate.
+
+**75. Stream pipeline components.**
+Source → intermediate (lazy) ops → terminal op. See [pipeline anatomy](/docs/java-8-plus/streams/#pipeline-anatomy).
+
+**76. Intermediate vs terminal operations.**
+Intermediate return a stream and are lazy (`map`, `filter`); terminal trigger execution
+(`collect`, `reduce`, `count`).
+
+**77. 2nd highest salary using streams.**
+`emps.stream().map(Emp::salary).distinct().sorted(reverseOrder()).skip(1).findFirst()`.
+
+**78. How have you used streams in projects?**
+Transforming entities to DTOs, grouping/aggregating reports (`groupingBy`), filtering
+collections, and flattening nested data with `flatMap`.
+
+**79. Lambdas vs anonymous inner classes.**
+Lambdas are concise, capture `this` of the enclosing class, and target functional
+interfaces; anonymous classes create a new class/`this`, can have state, and implement any
+type.
+
+## Advanced OOP (80–87)
+
+**80. Functional interface in detail (custom example).**
+`@FunctionalInterface interface Calc { int apply(int a, int b); }` then
+`Calc add = (a,b) -> a+b;`. The annotation enforces exactly one abstract method.
+
+**81. Sealed classes (Java 17)? Benefits.**
+Restrict which types may extend/implement (`sealed ... permits`). Enables exhaustive
+pattern matching and models closed hierarchies. See [Modern Java](/docs/java-8-plus/#sealed-classes).
+
+**82. Fail-fast vs fail-safe iteration.**
+Fail-fast iterators throw `ConcurrentModificationException` on structural change
+(`ArrayList`); fail-safe iterate a copy/snapshot (`CopyOnWriteArrayList`,
+`ConcurrentHashMap`).
+
+**83. What causes ConcurrentModificationException?**
+Structurally modifying a collection while iterating it with a fail-fast iterator. Fix:
+`iterator.remove()`, `removeIf`, or a concurrent collection.
+
+**84. `final` vs `finally` vs `finalize()`.**
+`final` = cannot reassign/override/extend; `finally` = always-run block; `finalize()` =
+deprecated GC callback (don't use).
+
+**85. Autoboxing/unboxing performance implications.**
+Boxing allocates wrapper objects; in tight loops or large collections it adds GC pressure.
+Use primitive streams/arrays for numeric hot paths.
+
+**86. Cloneable interface — deep vs shallow clone.**
+`Cloneable` + `clone()` does a shallow copy (shared referenced objects). Deep clone copies
+nested objects too. Prefer copy constructors/factories.
+
+**87. Shallow copy vs deep copy.**
+Shallow copies field values (references shared); deep recursively copies referenced
+objects (independent). Mutating a shared object affects both shallow copies.
+
+## Memory management (88–92)
+
+**88. How does Java memory management work?**
+Objects on the heap (generational), references/frames on per-thread stacks; the GC
+reclaims unreachable objects automatically. See [JVM Internals](/docs/jvm/).
+
+**89. Types of garbage collection.**
+Minor GC (young gen), Major/Full GC (old gen). Collectors: Serial, Parallel, G1 (default),
+ZGC/Shenandoah (low-pause). See [GC algorithms](/docs/jvm/#gc-algorithms).
+
+**90. What is `finalize()`? Should you use it?**
+A pre-GC callback — deprecated, unreliable, and slow. Use try-with-resources / `Cleaner`
+instead.
+
+**91. Stack vs heap.**
+Stack: per-thread frames (locals, references), auto-reclaimed. Heap: shared objects,
+GC-managed. See [memory areas](/docs/jvm/#memory-areas).
+
+**92. How to handle OutOfMemoryError? Prevention.**
+Capture a heap dump (`-XX:+HeapDumpOnOutOfMemoryError`), analyze in MAT, fix leaks
+(unbounded caches, `ThreadLocal`s, statics), right-size the heap. See [leaks](/docs/jvm/#memory-leaks--errors).
+
+## Multithreading (93–101)
+
+**93. What is multithreading? Thread lifecycle.**
+Concurrent execution within a process sharing the heap. States: NEW → RUNNABLE →
+BLOCKED/WAITING/TIMED_WAITING → TERMINATED. See [Thread Fundamentals](/docs/concurrency/thread-fundamentals/).
+
+**94. What is synchronization? How does `synchronized` work?**
+Mutual exclusion + visibility via an object monitor — only one thread holds the lock at a
+time. See [Thread Safety](/docs/concurrency/thread-safety/#synchronized).
+
+**95. `wait()` vs `sleep()`.**
+`wait()` releases the monitor lock and waits for `notify()` (must be in `synchronized`);
+`sleep()` pauses but keeps locks.
+
+**96. What is `volatile`? When to use it?**
+Guarantees visibility (reads/writes hit main memory), not atomicity — good for flags, not
+`count++`. See [volatile](/docs/concurrency/thread-safety/#volatile).
+
+**97. What is ThreadLocal? Use cases.**
+Per-thread storage (each thread has its own value) — e.g. correlation IDs,
+`SimpleDateFormat`. Must be cleared in thread pools to avoid leaks.
+
+**98. What is a deadlock? How to prevent?**
+Threads each holding a lock the other needs. Prevent with consistent lock ordering,
+`tryLock` timeouts, short critical sections. See [deadlocks](/docs/concurrency/thread-safety/#deadlocks).
+
+**99. What is the Runnable interface?**
+A functional interface with `run()` — a task with no result and no checked exceptions,
+run by a thread or executor.
+
+**100. Runnable vs Callable.**
+`Runnable` returns nothing, can't throw checked; `Callable<T>` returns a value and may
+throw, used with `submit` → `Future`.
+
+**101. Synchronized methods vs blocks — which is better?**
+Blocks are better: they lock a smaller critical section and let you choose the lock object,
+reducing contention.
+
+## Spring Boot intermediate (102–111)
+
+**102. How does auto-configuration work?**
+`@EnableAutoConfiguration` loads candidate configs guarded by `@ConditionalOn...`; they
+apply based on classpath/beans/properties and back off if you define your own. See
+[Auto-Configuration](/docs/spring-boot/auto-configuration/).
+
+**103. `@Configuration` and `@Bean`.**
+`@Configuration` marks a class of bean definitions; `@Bean` methods explicitly create
+beans (ideal for third-party types).
+
+**104. What are Spring Profiles? How to use them?**
+Environment-specific bean/config sets (`@Profile`, `on-profile`), activated via
+`spring.profiles.active`. See [Configuration & Profiles](/docs/spring-boot/configuration-and-profiles/#profiles).
+
+**105. What does `@Transactional` do? Propagation levels?**
+Wraps a method in a transaction (commit/rollback via proxy). Propagation: REQUIRED
+(default), REQUIRES_NEW, NESTED, SUPPORTS, etc. See [transactions](/docs/spring-data-jpa/#transactions).
+
+**106. How to implement global exception handling?**
+`@RestControllerAdvice` with `@ExceptionHandler` methods returning a consistent error body.
+See [validation & errors](/docs/rest-api/validation-and-errors/).
+
+**107. application.properties vs application.yml.**
+Same purpose, different syntax. YAML is hierarchical/readable for nested config; properties
+is flat key=value. Don't mix for the same keys.
+
+**108. CommandLineRunner vs ApplicationRunner.**
+Both run code at startup after the context is ready; `CommandLineRunner` gets raw
+`String[]` args, `ApplicationRunner` gets parsed `ApplicationArguments`.
+
+**109. How does the embedded Tomcat work?**
+Spring Boot bundles Tomcat in the JAR and starts it in `main()`, so you run
+`java -jar app.jar` with no external server. Swappable for Jetty/Undertow.
+
+**110. How to override auto-configuration?**
+Define your own bean (`@ConditionalOnMissingBean` backs off), set properties, exclude a
+config (`@SpringBootApplication(exclude=...)`), or change the classpath.
+
+**111. What are circular dependencies? How to resolve?**
+A ↔ B mutual dependency; fails with constructor injection. Fix by refactoring (extract a
+third bean), or last-resort `@Lazy`. See [circular deps](/docs/spring-core/dependency-injection/#circular-dependencies).
+
+## Dependency injection (112–117)
+
+**112. Constructor vs field injection — best practice.**
+Prefer constructor: immutable `final` fields, explicit deps, testable, fail-fast. Field
+injection hides deps and needs reflection to test. See [DI](/docs/spring-core/dependency-injection/#why-constructor-injection-wins).
+
+**113. What is `@Qualifier`? When needed?**
+Selects a specific bean by name when multiple candidates of a type exist.
+
+**114. `@Primary` and its precedence.**
+Marks the default bean for a type when multiple exist. `@Qualifier` at the injection point
+overrides `@Primary`.
+
+**115. How to avoid bean creation failures?**
+Ensure a single unambiguous candidate (`@Primary`/`@Qualifier`), no cycles, required beans
+present, and correct scopes. Read the startup stack trace.
+
+**116. `@Autowired` with `@Qualifier` — example.**
+`@Autowired public Svc(@Qualifier("paypal") PaymentGateway gw)` injects the bean named
+`paypal`.
+
+**117. `@Primary` vs `@Qualifier` — which wins?**
+`@Qualifier` (explicit at the injection point) takes precedence over `@Primary` (a global
+default).
+
+## REST API advanced (118–126)
+
+**118. `@RequestMapping` vs `@GetMapping`.**
+`@GetMapping` is a shortcut for `@RequestMapping(method=GET)`. Use the specific verb
+mappings for clarity.
+
+**119. `@PathVariable` vs `@RequestParam`.**
+`@PathVariable` binds a URI segment (`/users/{id}`); `@RequestParam` binds a query/form
+param (`?page=0`). See [params](/docs/rest-api/#path-vs-query-params--body).
+
+**120. `@PostMapping` vs `@PutMapping` — semantics.**
+POST creates / non-idempotent action; PUT fully replaces a resource and is idempotent.
+
+**121. PUT vs PATCH — idempotency.**
+PUT replaces the whole resource (idempotent); PATCH partially updates (not necessarily
+idempotent).
+
+**122. `@ExceptionHandler` vs `@ControllerAdvice`.**
+`@ExceptionHandler` handles exceptions in one controller; `@ControllerAdvice`/
+`@RestControllerAdvice` applies handlers globally across controllers.
+
+**123. How to validate a request body with `@Valid`?**
+Annotate the DTO fields with constraints and put `@Valid` on the `@RequestBody` param;
+failures throw `MethodArgumentNotValidException`. See [validation](/docs/rest-api/validation-and-errors/).
+
+**124. What is HATEOAS? Spring implementation.**
+Responses include links to related actions/resources (hypermedia). Spring HATEOAS provides
+`EntityModel`/`Link` builders. Often skipped in practice.
+
+**125. How to version REST APIs?**
+URI path (`/api/v1`, preferred), header (`Accept`), or query param. Version on breaking
+changes. See [versioning](/docs/rest-api/pagination-filtering-versioning/#api-versioning).
+
+**126. How to document APIs with Swagger/OpenAPI?**
+Add `springdoc-openapi`; docs generate from controllers/DTOs at `/swagger-ui.html`. See
+[OpenAPI](/docs/rest-api/pagination-filtering-versioning/#documenting-with-openapi).
+
+## JPA & database (127–136)
+
+**127. What is ORM?**
+Object-Relational Mapping — maps objects/classes to tables/rows so you work with entities
+instead of SQL. See [Spring Data JPA](/docs/spring-data-jpa/).
+
+**128. JPA vs Hibernate.**
+JPA is the specification (annotations, `EntityManager`, JPQL); Hibernate is the most common
+implementation.
+
+**129. What is an Entity in JPA?**
+A class mapped to a table (`@Entity`) with an `@Id`; instances are managed by the
+persistence context.
+
+**130. Important JPA annotations.**
+`@Entity`, `@Table`, `@Id`, `@GeneratedValue`, `@Column`, `@ManyToOne`/`@OneToMany`/
+`@ManyToMany`, `@JoinColumn`, `@Transactional`, `@Version`.
+
+**131. `persist()` vs `merge()`.**
+`persist` makes a new entity managed (insert); `merge` copies a detached entity's state
+into a managed instance and returns it (update-or-insert).
+
+**132. JPA relationships: OneToOne, OneToMany, ManyToMany.**
+Map associations; the owning side holds the FK, the inverse uses `mappedBy`. See
+[Entity Relationships](/docs/spring-data-jpa/entity-relationships/).
+
+**133. What is JPQL? How does it differ from SQL?**
+Object-oriented query language over *entities/fields*, not tables/columns; portable across
+databases. Hibernate translates it to SQL.
+
+**134. Lazy vs eager loading — performance.**
+Lazy loads an association on first access; eager loads it with the parent. Eager to-one
+associations fuel the [N+1 problem](/docs/spring-data-jpa/n-plus-one/).
+
+**135. `save()` vs `saveAndFlush()`.**
+`save` persists but may defer the SQL to flush time; `saveAndFlush` forces an immediate
+flush to the database (useful before a native query in the same tx).
+
+**136. `get()` vs `load()` in Hibernate.**
+`get` hits the DB immediately and returns null if missing; `load` returns a lazy proxy and
+throws on access if missing.
+
+## Testing (137–146)
+
+**137. What is JUnit? Basic annotations.**
+The Java unit-testing framework. `@Test`, `@BeforeEach`/`@AfterEach`, `@BeforeAll`/
+`@AfterAll`, `@ParameterizedTest`, `@DisplayName`. See [Unit Testing](/docs/testing/unit-testing-mockito/).
+
+**138. What is Mockito? Why mock?**
+A mocking library to replace collaborators with programmable fakes, isolating the class
+under test for fast deterministic units.
+
+**139. `@Mock` vs `@MockBean` vs `@Spy`.**
+`@Mock` = plain Mockito mock; `@MockBean` = mock registered in the Spring context (slice
+tests); `@Spy` = real object with selective stubbing.
+
+**140. What is MockMvc? Testing controllers.**
+Tests the web layer without a server — perform requests and assert status/JSON. See
+[integration testing](/docs/testing/integration-testcontainers/#controller-tests-with-webmvctest--mockmvc).
+
+**141. `@SpringBootTest` vs `@WebMvcTest`.**
+`@SpringBootTest` loads the full context (integration); `@WebMvcTest` loads only the web
+slice (fast controller tests).
+
+**142. How to test service-layer methods?**
+Pure unit tests: mock the repository/collaborators with Mockito, call the method, assert
+outputs and verify interactions.
+
+**143. What is test coverage? How to measure?**
+The percent of code exercised by tests; measured with JaCoCo. High coverage ≠ good tests —
+cover behavior and edge cases, not just lines.
+
+**144. Integration testing best practices.**
+Use narrow slices where possible, real dependencies via Testcontainers, isolate test data,
+and keep tests independent/repeatable.
+
+**145. How to test database operations?**
+`@DataJpaTest` for repository queries; Testcontainers for a real database matching prod.
+See [Testcontainers](/docs/testing/integration-testcontainers/#testcontainers-a-real-database).
+
+**146. What is TDD?**
+Test-Driven Development: write a failing test, make it pass with minimal code, refactor
+(red-green-refactor). Drives design and coverage.
+
+---
+
+Next: [Level 3 — Advanced (Core) (Q147–193)](/docs/interview-preparation/level-3-advanced-core/)

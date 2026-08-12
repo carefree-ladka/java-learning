@@ -1,0 +1,227 @@
+---
+id: validation-and-errors
+title: Validation & Error Handling
+sidebar_label: Validation & Errors
+sidebar_position: 1
+description: Bean Validation on DTOs, nested and custom validators, and a consistent error contract with @RestControllerAdvice and RFC 7807 ProblemDetail.
+---
+
+# Validation & Error Handling
+
+An API's error behavior is part of its contract. Reject bad input early with a clear
+`400`, and return a **consistent, machine-readable** error body for every failure — never
+a raw stack trace.
+
+<ProgressTracker id="rest-validation" />
+
+## Table of Contents
+
+- [Bean Validation on DTOs](#bean-validation-on-dtos)
+- [Triggering validation](#triggering-validation)
+- [Nested & collection validation](#nested--collection-validation)
+- [Custom validators](#custom-validators)
+- [A consistent error contract](#a-consistent-error-contract)
+- [ProblemDetail (RFC 7807)](#problemdetail-rfc-7807)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Bean Validation on DTOs
+
+Annotate DTO fields with Jakarta Bean Validation constraints (from
+`spring-boot-starter-validation`).
+
+```java
+public record CreateUserRequest(
+    @NotBlank String name,
+    @Email @NotBlank String email,
+    @Min(18) @Max(120) int age,
+    @Size(min = 8, max = 64) String password,
+    @Pattern(regexp = "\\+?[0-9]{10,15}") String phone
+) {}
+```
+
+| Constraint | Checks |
+| --- | --- |
+| `@NotNull` / `@NotBlank` / `@NotEmpty` | present / non-blank string / non-empty collection |
+| `@Size(min,max)` | length or size range |
+| `@Min` / `@Max` / `@Positive` | numeric bounds |
+| `@Email` / `@Pattern` | format |
+| `@Past` / `@Future` | date/time |
+
+## Triggering validation
+
+`@Valid` on the controller parameter runs validation; a failure throws
+`MethodArgumentNotValidException` **before** your method body runs.
+
+```java
+@PostMapping("/api/users")
+public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest req) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
+}
+
+// Validate a single path/query param — needs @Validated on the class
+@GetMapping("/api/users")
+public List<UserResponse> list(@RequestParam @Min(1) @Max(100) int size) { ... }
+```
+
+## Nested & collection validation
+
+Use `@Valid` on nested objects and inside generics to cascade validation.
+
+```java
+public record CreateOrderRequest(
+    @NotNull Long customerId,
+    @NotEmpty List<@Valid LineItemDto> items   // validate EACH item too
+) {}
+
+public record LineItemDto(@NotNull Long productId, @Min(1) int quantity) {}
+```
+
+<Warning>
+Validation does **not** cascade automatically. Without `@Valid` on the nested field (and
+`@Valid` inside the `List<@Valid ...>`), the inner objects are not checked. Forgetting
+this is a common source of "invalid data slipped through".
+</Warning>
+
+## Custom validators
+
+For rules the built-ins can't express, write a constraint annotation + validator.
+
+```java
+@Target({FIELD}) @Retention(RUNTIME)
+@Constraint(validatedBy = StrongPasswordValidator.class)
+public @interface StrongPassword {
+    String message() default "password must include upper, lower, digit, and symbol";
+    Class<?>[] groups() default {};
+    Class<? extends Payload>[] payload() default {};
+}
+
+public class StrongPasswordValidator implements ConstraintValidator<StrongPassword, String> {
+    @Override
+    public boolean isValid(String value, ConstraintValidatorContext ctx) {
+        if (value == null) return true;   // let @NotNull handle nullness
+        return value.matches(".*[A-Z].*") && value.matches(".*[a-z].*")
+            && value.matches(".*\\d.*") && value.matches(".*[^A-Za-z0-9].*");
+    }
+}
+
+// usage
+public record SignUp(@Email String email, @StrongPassword String password) {}
+```
+
+<Tip>
+Keep a custom validator focused on **one** rule and let `@NotNull` handle nullness
+(return `true` for null in your validator). Compose small constraints rather than one
+mega-validator.
+</Tip>
+
+## A consistent error contract
+
+Centralize handling so every endpoint returns the same error shape.
+
+```java
+public record ApiError(int status, String code, String message,
+                       List<FieldError> errors, Instant timestamp) {
+    public record FieldError(String field, String message) {}
+}
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleValidation(MethodArgumentNotValidException ex) {
+        var fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+            .map(f -> new ApiError.FieldError(f.getField(), f.getDefaultMessage()))
+            .toList();
+        return new ApiError(400, "VALIDATION_ERROR", "Request validation failed",
+                            fieldErrors, Instant.now());
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiError handleNotFound(EntityNotFoundException ex) {
+        return new ApiError(404, "NOT_FOUND", ex.getMessage(), List.of(), Instant.now());
+    }
+
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ApiError handleUnexpected(Exception ex) {
+        log.error("Unhandled exception", ex);          // detail server-side only
+        return new ApiError(500, "INTERNAL_ERROR", "Something went wrong",
+                            List.of(), Instant.now());  // safe generic message to client
+    }
+}
+```
+
+<Backend>
+Never leak stack traces or exception messages that reveal internals to clients — it's a
+security risk. Log full detail server-side with a correlation id and return a safe,
+structured body. See [Exception Handling](/docs/exceptions/) and
+[Production](/docs/production/).
+</Backend>
+
+## ProblemDetail (RFC 7807)
+
+Spring 6 / Boot 3 ships a standard error format, `ProblemDetail`, so you don't have to
+invent your own envelope.
+
+```java
+@ExceptionHandler(EntityNotFoundException.class)
+public ProblemDetail handle(EntityNotFoundException ex) {
+    ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    pd.setTitle("Resource Not Found");
+    pd.setType(URI.create("https://api.shop.com/errors/not-found"));
+    pd.setProperty("timestamp", Instant.now());
+    return pd;
+}
+```
+
+<Tip>
+Prefer **`ProblemDetail`** for new APIs — it's an IETF standard (`application/problem+json`)
+that clients and tools already understand, and Spring can produce it automatically for
+common errors. Reserve a custom envelope for when you have specific contract requirements.
+</Tip>
+
+## Common mistakes
+
+<Warning>
+- Missing `spring-boot-starter-validation`, so constraints are silently ignored.
+- Validating entities instead of DTOs at the boundary.
+- Forgetting `@Valid` on nested objects / inside collections.
+- Different error shapes per endpoint (clients can't parse reliably).
+- Returning 200 with an error in the body — use the right status code.
+</Warning>
+
+## Interview questions
+
+**Q: How does request validation work in Spring?**
+`@Valid` on a `@RequestBody` DTO triggers Bean Validation; failures throw
+`MethodArgumentNotValidException`, which a `@RestControllerAdvice` maps to a 400.
+
+**Q: How do you validate nested objects?**
+Put `@Valid` on the nested field and inside generic collections
+(`List<@Valid ItemDto>`) — validation doesn't cascade otherwise.
+
+**Q: How do you build a consistent error contract?**
+Centralize with `@RestControllerAdvice` + `@ExceptionHandler`, returning a shared shape
+(or `ProblemDetail`), and never leak stack traces.
+
+**Q: What is ProblemDetail?**
+Spring's RFC 7807 (`application/problem+json`) standard error representation.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Bean Validation constraints + `@Valid` on DTOs.
+- Cascade validation into nested objects/collections.
+- Centralized `@RestControllerAdvice` error handling; correct status codes.
+
+### 🟡 Good to Know
+- Custom constraint annotations + `ConstraintValidator`.
+- `ProblemDetail` / RFC 7807.
+
+### 🟢 Nice to Know
+- Validation groups; class-level (cross-field) constraints.
+- i18n of validation messages.

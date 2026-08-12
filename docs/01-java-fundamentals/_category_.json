@@ -1,0 +1,9 @@
+{
+  "label": "Java Fundamentals",
+  "position": 1,
+  "collapsible": true,
+  "collapsed": true,
+  "customProps": {
+    "description": "JDK/JRE/JVM, compilation, types, operators, control flow, strings, static/final/this/super."
+  }
+}

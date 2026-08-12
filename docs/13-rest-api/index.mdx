@@ -1,0 +1,239 @@
+---
+id: index
+title: REST API Development
+sidebar_label: REST API Development
+sidebar_position: 0
+slug: /rest-api/
+description: REST principles, HTTP methods and status codes, DTOs, validation, pagination, versioning, idempotency, error contracts, and OpenAPI.
+---
+
+# REST API Development
+
+REST is the default contract between backend services and clients. Getting methods,
+status codes, and error shapes right is what separates a professional API from a
+"it returns 200 with an error in the body" API.
+
+<ProgressTracker id="rest-overview" />
+
+## Table of Contents
+
+- [REST principles](#rest-principles)
+- [HTTP methods](#http-methods)
+- [Status codes](#status-codes)
+- [Path vs query params & body](#path-vs-query-params--body)
+- [DTOs & validation](#dtos--validation)
+- [Pagination, sorting, filtering](#pagination-sorting-filtering)
+- [Idempotency](#idempotency)
+- [API versioning](#api-versioning)
+- [Error contract](#error-contract)
+- [OpenAPI / Swagger](#openapi--swagger)
+- [Deep-dive topics](#deep-dive-topics)
+- [Most Asked Interview Questions](#most-asked-interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## REST principles
+
+- **Resources** identified by URIs (`/orders/42`), named with **nouns**, not verbs.
+- **Stateless** — each request carries everything needed; no server session.
+- **Uniform interface** — standard HTTP methods and status codes.
+- **Representations** — usually JSON.
+
+<Warning>
+URLs name resources, not actions. Prefer `POST /orders/42/cancel` or a status
+`PATCH` over `GET /cancelOrder?id=42`. And never mutate state in a `GET`.
+</Warning>
+
+## HTTP methods
+
+| Method | Purpose | Safe | Idempotent |
+| --- | --- | :---: | :---: |
+| `GET` | Read | ✅ | ✅ |
+| `POST` | Create / non-idempotent action | ❌ | ❌ |
+| `PUT` | Full replace | ❌ | ✅ |
+| `PATCH` | Partial update | ❌ | ❌* |
+| `DELETE` | Remove | ❌ | ✅ |
+
+\*PATCH can be made idempotent by design. **Idempotent** = repeating the request has
+the same effect as doing it once.
+
+## Status codes
+
+| Range | Meaning | Common codes |
+| --- | --- | --- |
+| 2xx | Success | 200 OK, 201 Created, 204 No Content |
+| 3xx | Redirection | 301, 304 Not Modified |
+| 4xx | Client error | 400, 401, 403, 404, 409 Conflict, 422, 429 |
+| 5xx | Server error | 500, 502, 503, 504 |
+
+<Important>
+Use the right code: **201** with a `Location` header for creation, **204** for a
+successful delete with no body, **400** for malformed input, **401** for
+missing/invalid auth, **403** for authenticated-but-forbidden, **404** for missing
+resource, **409** for conflicts, **422** for semantic validation failures.
+</Important>
+
+## Path vs query params & body
+
+```java
+@GetMapping("/api/orders/{id}")                 // path: identify a resource
+Order get(@PathVariable Long id) { ... }
+
+@GetMapping("/api/orders")                       // query: filter/paginate
+Page<Order> search(@RequestParam(required = false) String status,
+                   @RequestParam(defaultValue = "0") int page) { ... }
+
+@PostMapping("/api/orders")                      // body: the payload
+Order create(@Valid @RequestBody CreateOrderRequest req) { ... }
+
+@GetMapping("/api/orders/{id}")
+Order withHeader(@RequestHeader("X-Tenant-Id") String tenant) { ... }
+```
+
+## DTOs & validation
+
+Never expose JPA entities directly — they leak your schema and cause lazy-loading
+serialization bugs. Use DTOs (records) at the boundary and validate them.
+
+```java
+public record CreateOrderRequest(
+    @NotNull Long customerId,
+    @NotEmpty List<@Valid LineItemDto> items,
+    @Size(max = 500) String note
+) {}
+
+public record LineItemDto(@NotNull Long productId, @Min(1) int quantity) {}
+```
+
+`@Valid` on the controller parameter triggers validation; failures become a
+`MethodArgumentNotValidException` you translate to a 400/422 (see error contract).
+
+## Pagination, sorting, filtering
+
+```java
+@GetMapping("/api/orders")
+Page<OrderResponse> list(
+    @RequestParam(defaultValue = "0") int page,
+    @RequestParam(defaultValue = "20") int size,
+    @RequestParam(defaultValue = "createdAt,desc") String sort) {
+
+    Pageable pageable = PageRequest.of(page, size, parseSort(sort));
+    return service.list(pageable);
+}
+```
+
+<Backend>
+Push pagination and sorting into the database (`LIMIT/OFFSET` or keyset pagination),
+never into memory. For very large or frequently-changing datasets prefer **keyset
+(cursor) pagination** (`WHERE id > :lastId`) over `OFFSET`, which slows down as the
+offset grows.
+</Backend>
+
+## Idempotency
+
+Retries and network timeouts mean the same `POST` can arrive twice. Support an
+**idempotency key** so a duplicate create doesn't charge a customer twice.
+
+```java
+@PostMapping("/api/payments")
+ResponseEntity<PaymentResponse> pay(
+    @RequestHeader("Idempotency-Key") String key,
+    @Valid @RequestBody PaymentRequest req) {
+    // Look up key: if seen, return the stored response; else process and store it
+}
+```
+
+## API versioning
+
+```text
+URI path:     /api/v1/orders     (most common, explicit)
+Header:       Accept: application/vnd.shop.v2+json
+Query param:  /api/orders?version=2
+```
+
+Prefer **URI path versioning** for clarity. Version when you make a breaking change;
+add fields without a new version (clients should ignore unknown fields).
+
+## Error contract
+
+Return a consistent, machine-readable error body for every failure (implemented with
+`@RestControllerAdvice` — see [Exception Handling](/docs/exceptions/)).
+
+```json
+{
+  "status": 404,
+  "code": "ORDER_NOT_FOUND",
+  "message": "Order 42 was not found",
+  "timestamp": "2026-08-12T10:15:30Z",
+  "path": "/api/orders/42"
+}
+```
+
+## OpenAPI / Swagger
+
+Document the API automatically with springdoc-openapi.
+
+```xml
+<dependency>
+  <groupId>org.springdoc</groupId>
+  <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+  <version>2.6.0</version>
+</dependency>
+```
+
+Interactive docs then live at `/swagger-ui.html`, generated from your controllers
+and DTOs — a live, always-accurate API contract.
+
+## Deep-dive topics
+
+<div className="jbm-card-grid">
+  <Link className="jbm-card" to="/docs/rest-api/validation-and-errors">
+    <div className="jbm-card__icon">✅</div>
+    <h3>Validation & Error Handling</h3>
+    <p>Bean Validation, custom validators, @RestControllerAdvice, and ProblemDetail.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/rest-api/pagination-filtering-versioning">
+    <div className="jbm-card__icon">📄</div>
+    <h3>Pagination, Filtering & Versioning</h3>
+    <p>Offset vs keyset paging, DB-side sort/filter, versioning, and OpenAPI docs.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/rest-api/response-entity">
+    <div className="jbm-card__icon">📦</div>
+    <h3>ResponseEntity — Complete Guide</h3>
+    <p>Status, headers, body, builders, 201/204, files, ETags, and DTO vs ResponseEntity.</p>
+  </Link>
+</div>
+
+## Most Asked Interview Questions
+
+### Beginner
+- What makes an API RESTful?
+- POST vs PUT vs PATCH?
+- What does "stateless" mean?
+
+### Intermediate
+- Which status code for create/delete/validation/conflict?
+- Why use DTOs instead of returning entities?
+- Idempotent vs safe methods?
+
+### Advanced
+- How do you design idempotent payment endpoints?
+- Offset vs keyset pagination trade-offs?
+- API versioning strategies?
+
+### Coding
+- Build a paginated, validated, versioned CRUD controller.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- HTTP methods, safety/idempotency, and correct status codes.
+- DTOs + `@Valid` at the boundary.
+- Consistent error contract.
+
+### 🟡 Good to Know
+- Pagination/sorting pushed to the DB; keyset pagination.
+- Idempotency keys; API versioning.
+
+### 🟢 Nice to Know
+- HATEOAS, content negotiation, ETags/conditional requests.
+- OpenAPI-first (contract-first) development.

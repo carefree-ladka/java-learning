@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Java">
+  <!-- steam -->
+  <g fill="none" stroke="#e11d48" stroke-width="3.2" stroke-linecap="round">
+    <path d="M27 6c-3 4 2 6-1 11"/>
+    <path d="M35 4c-3.5 4.5 2.5 6.5-1 12"/>
+  </g>
+  <!-- cup body -->
+  <path d="M16 26h26v10a11 11 0 0 1-11 11H27a11 11 0 0 1-11-11z" fill="#2563eb"/>
+  <!-- cup handle -->
+  <path d="M42 28h4a6 6 0 0 1 0 12h-3" fill="none" stroke="#2563eb" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- coffee surface -->
+  <ellipse cx="29" cy="26" rx="13" ry="3.4" fill="#60a5fa"/>
+  <!-- saucer -->
+  <rect x="12" y="52" width="34" height="4.5" rx="2.25" fill="#1d4ed8"/>
+</svg>

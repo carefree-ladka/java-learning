@@ -1,0 +1,158 @@
+---
+id: operators-and-control-flow
+title: Operators & Control Flow
+sidebar_label: Operators & Control Flow
+sidebar_position: 3
+description: Operators, if/else, switch expressions, loops, and arrays with backend-relevant examples.
+---
+
+# Operators & Control Flow
+
+<ProgressTracker id="operators-and-control-flow" />
+
+## Table of Contents
+
+- [Operators](#operators)
+- [if / else](#if--else)
+- [switch expressions](#switch-expressions)
+- [Loops](#loops)
+- [Arrays](#arrays)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Operators
+
+| Category | Operators |
+| --- | --- |
+| Arithmetic | `+` `-` `*` `/` `%` |
+| Relational | `==` `!=` `<` `>` `<=` `>=` |
+| Logical | `&&` `\|\|` `!` (short-circuit) |
+| Bitwise | `&` `\|` `^` `~` `<<` `>>` `>>>` |
+| Assignment | `=` `+=` `-=` `*=` `/=` `%=` |
+| Ternary | `condition ? a : b` |
+
+<Tip>
+`&&` and `||` **short-circuit**: the right side is skipped when the result is
+already known. This is the idiomatic null guard: `if (user != null && user.isActive())`.
+</Tip>
+
+```java
+int a = 7, b = 3;
+System.out.println(a / b);   // 2  (integer division truncates)
+System.out.println(a % b);   // 1  (remainder)
+System.out.println(a / (double) b); // 2.333...
+```
+
+## if / else
+
+```java
+int status = order.getStatus();
+if (status == 200) {
+    process();
+} else if (status >= 400 && status < 500) {
+    handleClientError();
+} else {
+    handleServerError();
+}
+```
+
+## switch expressions
+
+Modern `switch` (Java 14+) is an **expression** that returns a value, uses arrow
+syntax, and requires no `break` (no fall-through).
+
+```java
+enum Day { MON, TUE, WED, THU, FRI, SAT, SUN }
+
+String kind = switch (day) {
+    case SAT, SUN -> "weekend";
+    case MON, TUE, WED, THU, FRI -> "weekday";
+};
+```
+
+Compare with the legacy form, whose missing `break` caused countless bugs:
+
+```java
+// Old style: fall-through is a classic source of defects
+switch (day) {
+    case SAT:
+    case SUN:
+        kind = "weekend";
+        break;               // forget this and execution "falls through"
+    default:
+        kind = "weekday";
+}
+```
+
+<Interview>
+Prefer switch **expressions** with arrows: they are exhaustive (the compiler
+checks all enum cases), have no fall-through, and can be assigned directly.
+</Interview>
+
+## Loops
+
+```java
+// Classic for
+for (int i = 0; i < items.size(); i++) { ... }
+
+// Enhanced for (for-each) — preferred when you don't need the index
+for (Order order : orders) {
+    process(order);
+}
+
+// while / do-while
+while (queue.hasNext()) { handle(queue.next()); }
+```
+
+## Arrays
+
+Fixed-size, zero-indexed, and covariant. Length is a field, not a method.
+
+```java
+int[] nums = new int[5];        // {0,0,0,0,0}
+int[] primes = {2, 3, 5, 7};    // literal
+System.out.println(primes.length);   // 4 (field, no parentheses)
+System.out.println(primes[10]);      // ArrayIndexOutOfBoundsException
+
+int[][] grid = new int[3][4];   // 2D array
+```
+
+<Warning>
+Arrays are fixed-size. For growable, high-level collections use `List` /
+`ArrayList` (see the Collections section). In backend code you almost always
+work with collections, not raw arrays.
+</Warning>
+
+## Common mistakes
+
+<Warning>
+- Integer division surprises: `1 / 2 == 0`. Cast to `double` when you need decimals.
+- Off-by-one errors with `<=` vs `<` on array bounds.
+- Forgetting `break` in legacy switch statements.
+- Modifying a collection while iterating with a for-each loop → `ConcurrentModificationException`.
+</Warning>
+
+## Interview questions
+
+**Q: switch statement vs switch expression?**
+The expression form (arrows) returns a value, has no fall-through, and is checked
+for exhaustiveness on enums. The statement form uses `break` and can fall through.
+
+**Q: Why does `0.1 + 0.2 != 0.3`?**
+Binary floating point cannot represent 0.1 or 0.2 exactly, so rounding errors
+accumulate. Use `BigDecimal` for exact decimals.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Short-circuit evaluation and its use as a null guard.
+- Integer division truncates; cast for decimals.
+- for-each vs indexed for.
+
+### 🟡 Good to Know
+- Switch expressions and exhaustiveness.
+- `>>` (arithmetic) vs `>>>` (logical) right shift.
+
+### 🟢 Nice to Know
+- Labeled `break`/`continue` for nested loops.

@@ -1,0 +1,164 @@
+---
+id: keywords
+title: static, final, this, super & Access
+sidebar_label: static, final, this, super
+sidebar_position: 5
+description: The keywords interviewers probe most, plus packages and access modifiers.
+---
+
+# static, final, this, super & Access
+
+<ProgressTracker id="keywords" />
+
+## Table of Contents
+
+- [static](#static)
+- [final](#final)
+- [this](#this)
+- [super](#super)
+- [Packages & access modifiers](#packages--access-modifiers)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## static
+
+`static` binds a member to the **class**, not an instance. One copy exists,
+shared by all instances, and it can be used without creating an object.
+
+```java
+public class OrderCounter {
+    private static int totalOrders = 0;   // shared across all instances
+    private final int id;                 // per-instance
+
+    public OrderCounter() {
+        this.id = ++totalOrders;          // static increment on each construction
+    }
+
+    public static int getTotalOrders() {  // callable without an instance
+        return totalOrders;
+    }
+}
+```
+
+<Warning>
+Mutable `static` state is shared across every request thread in a web server.
+Unsynchronized mutable statics cause race conditions. Prefer stateless services
+and inject dependencies instead of using static singletons.
+</Warning>
+
+## final
+
+`final` means "cannot change" in three contexts:
+
+- **final variable** — assign once (a constant or an immutable field).
+- **final method** — cannot be overridden by subclasses.
+- **final class** — cannot be extended (e.g. `String`).
+
+```java
+final int MAX = 100;          // constant
+final List<String> names = new ArrayList<>();
+names.add("ok");              // allowed: the reference is final, not the object
+names = new ArrayList<>();    // compile error: cannot reassign
+```
+
+<Important>
+`final` on a reference freezes the **reference**, not the object it points to.
+For true immutability, the object itself must also be immutable.
+</Important>
+
+## this
+
+`this` refers to the current object. Uses: disambiguate a field from a parameter,
+call another constructor, and pass the current instance.
+
+```java
+public class User {
+    private String name;
+    public User(String name) {
+        this.name = name;      // this.name = field, name = parameter
+    }
+    public User() {
+        this("anonymous");     // constructor chaining
+    }
+}
+```
+
+## super
+
+`super` refers to the parent-class portion of the object. Uses: call the parent
+constructor and invoke an overridden parent method.
+
+```java
+class Animal {
+    Animal(String type) { System.out.println("Animal: " + type); }
+    void speak() { System.out.println("..."); }
+}
+
+class Dog extends Animal {
+    Dog() {
+        super("dog");          // must be the first statement
+    }
+    @Override
+    void speak() {
+        super.speak();         // call parent version first
+        System.out.println("Woof");
+    }
+}
+```
+
+## Packages & access modifiers
+
+Packages namespace your classes and map to folder structure. Access modifiers
+control visibility, from most to least restrictive:
+
+| Modifier | Same class | Same package | Subclass | Everywhere |
+| --- | :---: | :---: | :---: | :---: |
+| `private` | ✅ | ❌ | ❌ | ❌ |
+| *(default)* | ✅ | ✅ | ❌ | ❌ |
+| `protected` | ✅ | ✅ | ✅ | ❌ |
+| `public` | ✅ | ✅ | ✅ | ✅ |
+
+<Backend>
+A typical Spring package layout keeps concerns separate:
+`com.shop.order.controller`, `com.shop.order.service`, `com.shop.order.repository`,
+`com.shop.order.dto`. Fields are `private`; access is through constructors and
+methods. This is encapsulation in practice.
+</Backend>
+
+## Common mistakes
+
+<Warning>
+- Treating `final` collections as immutable — the contents can still change.
+- Using mutable static fields in web apps (shared mutable state across threads).
+- Forgetting that `super(...)` / `this(...)` must be the first statement in a constructor.
+- Overusing `protected`, leaking internals to subclasses.
+</Warning>
+
+## Interview questions
+
+**Q: Can a `static` method be overridden?**
+No. Static methods are hidden, not overridden — resolution is by the reference's
+compile-time type, not the runtime object (no dynamic dispatch).
+
+**Q: Does `final` make an object immutable?**
+No. It prevents reassigning the reference. The object's internal state can still
+change unless the class itself is designed to be immutable.
+
+**Q: Difference between `this()` and `super()`?**
+`this(...)` calls another constructor in the same class; `super(...)` calls a
+parent constructor. Both must be the first statement, so you can use only one.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- `static` = class-level; `final` = cannot reassign/override/extend.
+- Access modifier visibility table.
+- `this` vs `super` and constructor chaining.
+
+### 🟡 Good to Know
+- Static methods are hidden, not overridden.
+- Default (package-private) access and when to use it.
+
+### 🟢 Nice to Know
+- `static` initializer blocks and their execution order.

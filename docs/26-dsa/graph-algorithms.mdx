@@ -1,0 +1,289 @@
+---
+id: graph-algorithms
+title: "12. Graph Algorithms"
+sidebar_label: 12. Graph Algorithms
+sidebar_position: 13
+description: Shortest paths (Dijkstra, Bellman-Ford, Floyd-Warshall), minimum spanning trees (Kruskal, Prim), and Union-Find (DSU) with path compression.
+---
+
+# 12. Graph Algorithms
+
+Beyond BFS/DFS, a handful of named algorithms solve shortest-path, spanning-tree, and
+connectivity problems. Know which one fits which constraints.
+
+<ProgressTracker id="dsa-graph-algorithms" />
+
+## Table of Contents
+
+- [Shortest path: which algorithm?](#shortest-path-which-algorithm)
+- [BFS shortest path (unweighted)](#bfs-shortest-path-unweighted)
+- [0-1 BFS (weights 0 or 1)](#0-1-bfs-weights-0-or-1)
+- [Dijkstra](#dijkstra)
+- [Bellman-Ford](#bellman-ford)
+- [Floyd-Warshall](#floyd-warshall)
+- [Disjoint Set Union (Union-Find)](#disjoint-set-union-union-find)
+- [Minimum Spanning Tree](#minimum-spanning-tree)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## Shortest path: which algorithm?
+
+| Algorithm | Graph | Handles negative? | Complexity |
+| --- | --- | --- | --- |
+| **BFS** | Unweighted | n/a | O(V + E) |
+| **0-1 BFS** | Weights ∈ {0, 1} | n/a | O(V + E) |
+| **Dijkstra** | Weighted, non-negative | ❌ | O(E log V) |
+| **Bellman-Ford** | Weighted | ✅ (detects negative cycles) | O(V·E) |
+| **Floyd-Warshall** | Weighted, all-pairs | ✅ | O(V³) |
+
+<Important>
+Pick by constraints: **BFS** for unweighted, **0-1 BFS** when every edge weight is 0 or
+1 (a deque replaces the heap — O(V + E) instead of O(E log V)), **Dijkstra** for
+arbitrary non-negative weights, **Bellman-Ford** when edges can be negative or you must
+detect a negative cycle, **Floyd-Warshall** for all-pairs shortest paths on small graphs.
+</Important>
+
+## BFS shortest path (unweighted)
+
+In an **unweighted** graph, BFS visits nodes in order of distance, so the first time you
+reach a node is via a shortest path (fewest edges). No heap needed — a plain queue.
+
+```java
+// Shortest number of edges from src to every node — O(V + E)
+int[] bfsShortestPath(int n, List<List<Integer>> adj, int src) {
+    int[] dist = new int[n];
+    Arrays.fill(dist, -1);          // -1 = unreachable
+    Queue<Integer> q = new ArrayDeque<>();
+    dist[src] = 0;
+    q.offer(src);
+    while (!q.isEmpty()) {
+        int u = q.poll();
+        for (int v : adj.get(u)) {
+            if (dist[v] == -1) {                 // first visit = shortest
+                dist[v] = dist[u] + 1;
+                q.offer(v);
+            }
+        }
+    }
+    return dist;
+}
+```
+
+<Important>
+Why BFS gives shortest paths for free: it expands strictly in increasing distance from
+the source, so a node is dequeued exactly at its minimum edge-distance. Set `dist[v]`
+**when you enqueue** `v` (not when you dequeue it) to avoid processing a node twice.
+This is the engine behind *Word Ladder*, *Rotting Oranges* (multi-source: seed the queue
+with all rotten cells), and *Shortest Path in Binary Matrix*.
+</Important>
+
+## 0-1 BFS (weights 0 or 1)
+
+When every edge weight is **0 or 1**, you don't need Dijkstra's heap. Use a **deque**:
+push 0-weight edges to the **front** (same distance) and 1-weight edges to the **back**
+(distance + 1). This keeps the deque monotonic by distance, giving O(V + E).
+
+```java
+// 0-1 BFS — O(V + E): deque replaces the priority queue
+int[] zeroOneBfs(int n, List<int[]>[] adj, int src) {   // adj[u] = {v, weight in {0,1}}
+    int[] dist = new int[n];
+    Arrays.fill(dist, Integer.MAX_VALUE);
+    dist[src] = 0;
+    Deque<Integer> dq = new ArrayDeque<>();
+    dq.offerFirst(src);
+    while (!dq.isEmpty()) {
+        int u = dq.pollFirst();
+        for (int[] e : adj[u]) {
+            int v = e[0], w = e[1];               // w is 0 or 1
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                if (w == 0) dq.offerFirst(v);      // 0-weight: same layer -> front
+                else dq.offerLast(v);              // 1-weight: next layer -> back
+            }
+        }
+    }
+    return dist;
+}
+```
+
+<Tip>
+Recognize 0-1 BFS when moves cost either "free" or "one unit" — e.g. grids where you can
+move freely but pay 1 to break/flip a wall, or "minimum obstacles to remove" problems
+(LeetCode 2290). It's an O(V + E) drop-in for Dijkstra in that special case. A related
+idea, **Dial's algorithm**, generalizes it to small integer weights using buckets.
+</Tip>
+
+## Dijkstra
+
+Greedy shortest path from a source with non-negative weights, using a min-heap.
+
+```java
+// O(E log V): min-heap of (distance, node)
+int[] dijkstra(int n, List<int[]>[] adj, int src) {   // adj[u] = list of {v, weight}
+    int[] dist = new int[n];
+    Arrays.fill(dist, Integer.MAX_VALUE);
+    dist[src] = 0;
+    PriorityQueue<int[]> pq = new PriorityQueue<>((a, b) -> a[1] - b[1]);  // {node, dist}
+    pq.offer(new int[]{src, 0});
+    while (!pq.isEmpty()) {
+        int[] cur = pq.poll();
+        int u = cur[0], d = cur[1];
+        if (d > dist[u]) continue;                 // stale entry, skip
+        for (int[] e : adj[u]) {
+            int v = e[0], w = e[1];
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                pq.offer(new int[]{v, dist[v]});
+            }
+        }
+    }
+    return dist;
+}
+```
+
+<Warning>
+Dijkstra breaks with **negative edges** — once a node is finalized it's never revisited,
+but a later negative edge could have improved it. Use Bellman-Ford instead.
+</Warning>
+
+## Bellman-Ford
+
+Relax all edges V−1 times; a further relaxation means a negative cycle.
+
+```java
+// O(V*E)
+int[] bellmanFord(int n, int[][] edges, int src) {   // edges: {u, v, w}
+    int[] dist = new int[n];
+    Arrays.fill(dist, Integer.MAX_VALUE);
+    dist[src] = 0;
+    for (int i = 0; i < n - 1; i++)                  // V-1 rounds
+        for (int[] e : edges)
+            if (dist[e[0]] != Integer.MAX_VALUE && dist[e[0]] + e[2] < dist[e[1]])
+                dist[e[1]] = dist[e[0]] + e[2];
+    // Optional: one more pass detects a negative cycle
+    return dist;
+}
+```
+
+## Floyd-Warshall
+
+All-pairs shortest paths via DP over intermediate nodes.
+
+```java
+// O(V^3): dist[i][j] = shortest i->j allowing intermediates 0..k
+void floydWarshall(int[][] dist, int n) {   // dist init: 0 diag, weight, else INF
+    for (int k = 0; k < n; k++)
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                if (dist[i][k] + dist[k][j] < dist[i][j])
+                    dist[i][j] = dist[i][k] + dist[k][j];
+}
+```
+
+## Disjoint Set Union (Union-Find)
+
+DSU tracks connected components with near-O(1) `find`/`union` using **path compression**
+and **union by rank/size**. Great for connectivity, cycle detection, and Kruskal's MST.
+
+```java
+class DSU {
+    private final int[] parent, rank;
+    DSU(int n) {
+        parent = new int[n];
+        rank = new int[n];
+        for (int i = 0; i < n; i++) parent[i] = i;   // each node is its own root
+    }
+    int find(int x) {                                // with path compression
+        if (parent[x] != x) parent[x] = find(parent[x]);
+        return parent[x];
+    }
+    boolean union(int a, int b) {                    // union by rank
+        int ra = find(a), rb = find(b);
+        if (ra == rb) return false;                  // already connected (cycle if adding edge)
+        if (rank[ra] < rank[rb]) { int t = ra; ra = rb; rb = t; }
+        parent[rb] = ra;
+        if (rank[ra] == rank[rb]) rank[ra]++;
+        return true;
+    }
+}
+```
+
+<Important>
+**Path compression** (flatten the tree on `find`) + **union by rank/size** (attach the
+smaller tree under the larger) together give an amortized near-constant `O(α(n))` per
+operation. `union` returning `false` means the two nodes were already connected — a
+ready-made cycle detector for undirected graphs.
+</Important>
+
+## Minimum Spanning Tree
+
+Connect all nodes with minimum total edge weight.
+
+### Kruskal (edges + DSU)
+
+```java
+// O(E log E): sort edges, add the cheapest that doesn't form a cycle
+int kruskalMST(int n, int[][] edges) {              // edges: {u, v, w}
+    Arrays.sort(edges, (a, b) -> a[2] - b[2]);
+    DSU dsu = new DSU(n);
+    int total = 0, used = 0;
+    for (int[] e : edges) {
+        if (dsu.union(e[0], e[1])) {                // union returns false on a cycle
+            total += e[2];
+            if (++used == n - 1) break;             // MST has n-1 edges
+        }
+    }
+    return total;
+}
+```
+
+### Prim (grow from a node with a heap)
+
+```java
+// O(E log V): repeatedly add the cheapest edge leaving the tree
+int primMST(int n, List<int[]>[] adj) {             // adj[u] = {v, w}
+    boolean[] inMST = new boolean[n];
+    PriorityQueue<int[]> pq = new PriorityQueue<>((a, b) -> a[1] - b[1]);  // {node, weight}
+    pq.offer(new int[]{0, 0});
+    int total = 0;
+    while (!pq.isEmpty()) {
+        int[] cur = pq.poll();
+        int u = cur[0], w = cur[1];
+        if (inMST[u]) continue;
+        inMST[u] = true; total += w;
+        for (int[] e : adj[u]) if (!inMST[e[0]]) pq.offer(new int[]{e[0], e[1]});
+    }
+    return total;
+}
+```
+
+## Problem checklist
+
+- [Network Delay Time](https://leetcode.com/problems/network-delay-time/) · Dijkstra
+- [Cheapest Flights Within K Stops](https://leetcode.com/problems/cheapest-flights-within-k-stops/) · Bellman-Ford
+- [Min Cost to Connect All Points](https://leetcode.com/problems/min-cost-to-connect-all-points/) · MST (Prim/Kruskal)
+- [Number of Connected Components](https://leetcode.com/problems/number-of-connected-components-in-an-undirected-graph/) · DSU
+- [Redundant Connection](https://leetcode.com/problems/redundant-connection/) · DSU cycle
+- [Swim in Rising Water](https://leetcode.com/problems/swim-in-rising-water/) · Dijkstra-like
+- [Rotting Oranges](https://leetcode.com/problems/rotting-oranges/) · multi-source BFS
+- [Shortest Path in Binary Matrix](https://leetcode.com/problems/shortest-path-in-binary-matrix/) · BFS
+- [01 Matrix](https://leetcode.com/problems/01-matrix/) · multi-source BFS
+- [Minimum Obstacle Removal to Reach Corner](https://leetcode.com/problems/minimum-obstacle-removal-to-reach-corner/) · 0-1 BFS
+- [Word Ladder](https://leetcode.com/problems/word-ladder/) · BFS shortest path
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Which shortest-path algorithm by constraints (BFS/0-1 BFS/Dijkstra/Bellman-Ford/Floyd).
+- BFS = shortest path in unweighted graphs (set dist on enqueue).
+- Dijkstra with a min-heap; no negative edges.
+- DSU with path compression + union by rank; it detects cycles.
+
+### 🟡 Good to Know
+- 0-1 BFS with a deque (front for 0, back for 1) — O(V + E) instead of Dijkstra.
+- Multi-source BFS (seed the queue with all sources).
+- Kruskal (sort + DSU) and Prim (heap) for MST; Bellman-Ford detects negative cycles.
+
+### 🟢 Nice to Know
+- A* (heuristic Dijkstra); Dial's algorithm for small integer weights.
+- Floyd-Warshall for all-pairs shortest paths.

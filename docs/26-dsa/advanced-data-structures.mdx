@@ -1,0 +1,185 @@
+---
+id: advanced-data-structures
+title: "18. Advanced Data Structures"
+sidebar_label: 18. Advanced Structures
+sidebar_position: 19
+description: Segment tree, Fenwick tree (BIT), sparse table, and bitwise trie — for range queries, updates, and XOR problems.
+---
+
+# 18. Advanced Data Structures
+
+Do these after the core roadmap. They're rarer in standard interviews but essential for
+range-query problems and competitive programming — and they impress when they fit.
+
+<ProgressTracker id="dsa-advanced-data-structures" />
+
+## Table of Contents
+
+- [Choosing a range structure](#choosing-a-range-structure)
+- [Fenwick Tree (BIT)](#fenwick-tree-bit)
+- [Segment Tree](#segment-tree)
+- [Sparse Table](#sparse-table)
+- [Bitwise Trie](#bitwise-trie)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## Choosing a range structure
+
+| Structure | Point update | Range query | Range update | Notes |
+| --- | --- | --- | --- | --- |
+| Prefix sum | O(n) rebuild | O(1) | ✗ | static arrays |
+| **Fenwick (BIT)** | O(log n) | O(log n) | with tricks | simplest for prefix sums |
+| **Segment tree** | O(log n) | O(log n) | O(log n) (lazy) | most flexible |
+| **Sparse table** | ✗ (immutable) | O(1) | ✗ | idempotent queries (min/max/gcd) |
+
+<Important>
+Rule of thumb: **prefix sum** for static range sums; **Fenwick tree** when you need
+point updates + prefix/range sums with minimal code; **segment tree** when you need
+arbitrary associative range queries and updates (min/max/sum, with lazy propagation);
+**sparse table** for immutable min/max/gcd range queries in O(1).
+</Important>
+
+## Fenwick Tree (BIT)
+
+A Binary Indexed Tree supports point update and prefix-sum query in O(log n) with a very
+small implementation. It leans on `i & (-i)` to walk the responsible ranges.
+
+```java
+class Fenwick {
+    private final long[] tree;
+    Fenwick(int n) { tree = new long[n + 1]; }   // 1-indexed
+
+    void update(int i, long delta) {              // add delta at index i
+        for (++i; i < tree.length; i += i & (-i)) tree[i] += delta;
+    }
+    long prefix(int i) {                          // sum of [0..i]
+        long sum = 0;
+        for (++i; i > 0; i -= i & (-i)) sum += tree[i];
+        return sum;
+    }
+    long range(int l, int r) { return prefix(r) - prefix(l - 1); }
+}
+```
+
+<Tip>
+`i & (-i)` isolates the lowest set bit, which is exactly the size of the range each BIT
+node covers — that's the whole trick. Fenwick is the go-to for "range sum with updates"
+(LeetCode 307).
+</Tip>
+
+## Segment Tree
+
+A binary tree over array ranges; each node stores an aggregate (sum/min/max) of its
+range. Point update and range query in O(log n); range updates need **lazy propagation**.
+
+```java
+// Sum segment tree — build, point update, range query
+class SegmentTree {
+    private final int n;
+    private final long[] tree;
+    SegmentTree(int[] a) {
+        n = a.length;
+        tree = new long[2 * n];                      // iterative, size 2n
+        for (int i = 0; i < n; i++) tree[n + i] = a[i];
+        for (int i = n - 1; i > 0; i--) tree[i] = tree[2*i] + tree[2*i+1];
+    }
+    void update(int i, int val) {
+        i += n; tree[i] = val;
+        for (i >>= 1; i > 0; i >>= 1) tree[i] = tree[2*i] + tree[2*i+1];
+    }
+    long query(int l, int r) {                       // sum of [l, r)
+        long sum = 0;
+        for (l += n, r += n; l < r; l >>= 1, r >>= 1) {
+            if ((l & 1) == 1) sum += tree[l++];
+            if ((r & 1) == 1) sum += tree[--r];
+        }
+        return sum;
+    }
+}
+```
+
+## Sparse Table
+
+Precompute answers for every power-of-two length range, then answer **idempotent**
+queries (min/max/gcd) in O(1). Immutable — no updates.
+
+```java
+// Range Minimum Query in O(1) after O(n log n) build
+class SparseTable {
+    private final int[][] table;
+    private final int[] log;
+    SparseTable(int[] a) {
+        int n = a.length, K = 1;
+        while ((1 << K) <= n) K++;
+        table = new int[K][n];
+        log = new int[n + 1];
+        for (int i = 2; i <= n; i++) log[i] = log[i/2] + 1;
+        table[0] = a.clone();
+        for (int k = 1; (1 << k) <= n; k++)
+            for (int i = 0; i + (1 << k) <= n; i++)
+                table[k][i] = Math.min(table[k-1][i], table[k-1][i + (1 << (k-1))]);
+    }
+    int min(int l, int r) {                          // inclusive [l, r]
+        int k = log[r - l + 1];
+        return Math.min(table[k][l], table[k][r - (1 << k) + 1]);
+    }
+}
+```
+
+## Bitwise Trie
+
+A binary trie over the bits of numbers (MSB→LSB). It answers "max XOR pair" queries by
+greedily choosing the opposite bit at each level.
+
+### Maximum XOR of Two Numbers — [LeetCode 421](https://leetcode.com/problems/maximum-xor-of-two-numbers-in-an-array/)
+
+```java
+// Insert each number's 32 bits; for each, greedily seek the opposite bit for max XOR
+class BitTrie {
+    private final BitTrie[] child = new BitTrie[2];
+    void insert(int num) {
+        BitTrie node = this;
+        for (int b = 31; b >= 0; b--) {
+            int bit = (num >> b) & 1;
+            if (node.child[bit] == null) node.child[bit] = new BitTrie();
+            node = node.child[bit];
+        }
+    }
+    int maxXor(int num) {
+        BitTrie node = this; int xor = 0;
+        for (int b = 31; b >= 0; b--) {
+            int bit = (num >> b) & 1, want = 1 - bit;    // prefer the opposite bit
+            if (node.child[want] != null) { xor |= (1 << b); node = node.child[want]; }
+            else node = node.child[bit];
+        }
+        return xor;
+    }
+}
+```
+
+<Interview>
+The bitwise-trie insight for max XOR: to maximize XOR, at each bit position you want the
+**opposite** bit if it exists. Building the trie is O(32n) and each query is O(32) — far
+better than the O(n²) brute-force pair check.
+</Interview>
+
+## Problem checklist
+
+- [Range Sum Query - Mutable](https://leetcode.com/problems/range-sum-query-mutable/) · Fenwick / segment tree
+- [Count of Smaller Numbers After Self](https://leetcode.com/problems/count-of-smaller-numbers-after-self/) · Fenwick
+- [Maximum XOR of Two Numbers](https://leetcode.com/problems/maximum-xor-of-two-numbers-in-an-array/) · bitwise trie
+- [The Skyline Problem](https://leetcode.com/problems/the-skyline-problem/) · segment tree / heap
+
+## Things You Should Know
+
+### 🔴 Must Know
+- When to use prefix sum vs Fenwick vs segment tree vs sparse table.
+- Fenwick tree for point-update + prefix-sum in O(log n).
+
+### 🟡 Good to Know
+- Segment tree for arbitrary associative range queries (+ lazy propagation).
+- Sparse table for O(1) immutable min/max queries.
+
+### 🟢 Nice to Know
+- Bitwise trie for max-XOR problems.
+- Merge sort tree, persistent segment trees.

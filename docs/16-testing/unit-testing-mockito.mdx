@@ -1,0 +1,229 @@
+---
+id: unit-testing-mockito
+title: Unit Testing with JUnit 5 & Mockito
+sidebar_label: Unit Testing & Mockito
+sidebar_position: 1
+description: Writing fast, isolated unit tests with JUnit 5 and Mockito — stubbing, verifying, argument captors, exceptions, and parameterized tests.
+---
+
+# Unit Testing with JUnit 5 & Mockito
+
+Unit tests exercise **one class in isolation**, with its collaborators replaced by mocks.
+They're fast (no Spring context, no database), so you can have thousands of them — the
+base of the [test pyramid](/docs/testing/#the-test-pyramid).
+
+<ProgressTracker id="unit-testing-mockito" />
+
+## Table of Contents
+
+- [JUnit 5 essentials](#junit-5-essentials)
+- [Assertions](#assertions)
+- [Mockito: mocks & stubbing](#mockito-mocks--stubbing)
+- [Verifying interactions](#verifying-interactions)
+- [Argument captors](#argument-captors)
+- [Stubbing exceptions & void methods](#stubbing-exceptions--void-methods)
+- [Parameterized tests](#parameterized-tests)
+- [What to unit test (and not)](#what-to-unit-test-and-not)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## JUnit 5 essentials
+
+```java
+class PriceCalculatorTest {
+    private PriceCalculator calc;
+
+    @BeforeEach
+    void setUp() { calc = new PriceCalculator(); }   // runs before each test
+
+    @Test
+    @DisplayName("applies a 10% discount")
+    void appliesDiscount() {
+        assertEquals(new BigDecimal("90.00"), calc.apply(new BigDecimal("100.00"), 0.10));
+    }
+
+    @AfterEach
+    void tearDown() { /* cleanup if needed */ }
+}
+```
+
+Lifecycle: `@BeforeAll`/`@AfterAll` (static, once), `@BeforeEach`/`@AfterEach` (per test),
+`@Test`, `@Disabled`, `@Nested` (group related tests), `@Tag` (filter runs).
+
+## Assertions
+
+```java
+assertEquals(expected, actual);
+assertTrue(order.isPaid());
+assertNull(result);
+assertThrows(UserNotFoundException.class, () -> service.get(99L));
+assertAll("order",                                   // group; reports all failures
+    () -> assertEquals(2, order.itemCount()),
+    () -> assertEquals("PAID", order.status()));
+
+// AssertJ (fluent, very readable — from spring-boot-starter-test)
+assertThat(users).hasSize(2).extracting(User::getName).containsExactly("Ann", "Bob");
+assertThat(order.getTotal()).isEqualByComparingTo("90.00");
+```
+
+<Tip>
+Prefer **AssertJ** (`assertThat(...)`) for readability and rich collection/exception
+assertions. It ships with `spring-boot-starter-test`. Use `isEqualByComparingTo` for
+`BigDecimal` so `2.0` and `2.00` compare equal.
+</Tip>
+
+## Mockito: mocks & stubbing
+
+A **mock** is a fake collaborator you program. `@Mock` creates them; `@InjectMocks`
+builds the class under test with the mocks injected.
+
+```java
+@ExtendWith(MockitoExtension.class)
+class UserServiceTest {
+
+    @Mock UserRepository repo;          // fake dependency
+    @InjectMocks UserService service;   // real class, mocks injected via constructor
+
+    @Test
+    void returnsUserWhenFound() {
+        // given — stub the mock's behavior
+        when(repo.findById(1L)).thenReturn(Optional.of(new User(1L, "Ann", "a@x.com")));
+
+        // when
+        UserResponse res = service.getById(1L);
+
+        // then
+        assertThat(res.name()).isEqualTo("Ann");
+    }
+}
+```
+
+<Important>
+`when(mock.method()).thenReturn(...)` stubs a return value. Only stub what the test
+actually uses — over-stubbing makes tests brittle. With `MockitoExtension` in strict mode
+(the default), unused stubs fail the test, which is a feature: it keeps tests honest.
+</Important>
+
+## Verifying interactions
+
+Assert that the class called its collaborator correctly.
+
+```java
+@Test
+void savesNewUser() {
+    when(repo.existsByEmail("a@x.com")).thenReturn(false);
+    when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+    service.create(new CreateUserRequest("Ann", "a@x.com"));
+
+    verify(repo).save(any(User.class));           // save was called once
+    verify(repo, never()).deleteById(anyLong());  // delete was NOT called
+    verify(repo, times(1)).existsByEmail("a@x.com");
+    verifyNoMoreInteractions(repo);               // nothing else happened
+}
+```
+
+## Argument captors
+
+Capture the actual argument passed to a mock to assert on it.
+
+```java
+@Test
+void savesUserWithNormalizedEmail() {
+    when(repo.existsByEmail(anyString())).thenReturn(false);
+    when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+    service.create(new CreateUserRequest("Ann", "A@X.COM"));
+
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(repo).save(captor.capture());
+    assertThat(captor.getValue().getEmail()).isEqualTo("a@x.com");  // lowercased
+}
+```
+
+## Stubbing exceptions & void methods
+
+```java
+// Make a mock throw
+when(repo.findById(9L)).thenThrow(new DataAccessResourceFailureException("db down"));
+
+// Stub a void method to throw
+doThrow(new IllegalStateException()).when(mailClient).send(any());
+
+// Consecutive returns (first call, then subsequent)
+when(counter.next()).thenReturn(1, 2, 3);
+```
+
+## Parameterized tests
+
+Run the same test over many inputs — DRY and thorough.
+
+```java
+@ParameterizedTest
+@CsvSource({
+    "100.00, 0.10, 90.00",
+    "50.00,  0.20, 40.00",
+    "10.00,  0.00, 10.00"
+})
+void discountTable(BigDecimal price, double pct, BigDecimal expected) {
+    assertThat(calc.apply(price, pct)).isEqualByComparingTo(expected);
+}
+
+@ParameterizedTest
+@ValueSource(strings = {"", " ", "no-at-sign"})
+void rejectsInvalidEmails(String email) {
+    assertThatThrownBy(() -> new Email(email)).isInstanceOf(IllegalArgumentException.class);
+}
+```
+
+## What to unit test (and not)
+
+<Important>
+Unit-test your **business logic** — services, domain rules, calculations, edge cases.
+Don't unit-test framework glue (getters, mappers, or that Spring wires beans) — that's
+what integration/slice tests cover. Mock at the boundary (repositories, clients), not
+the class under test.
+</Important>
+
+## Common mistakes
+
+<Warning>
+- Mocking the class under test instead of its collaborators.
+- Over-stubbing / stubbing calls the test never makes (strict Mockito flags this).
+- Asserting on implementation details instead of behavior/outputs.
+- Using `@SpringBootTest` for a pure unit test (slow — no Spring context needed).
+- Comparing `BigDecimal` with `equals` (`2.0 != 2.00`); use `isEqualByComparingTo`.
+</Warning>
+
+## Interview questions
+
+**Q: What is a mock and why use one?**
+A programmable fake collaborator that isolates the class under test so the test is fast,
+deterministic, and doesn't need real dependencies (DB, network).
+
+**Q: `@Mock` vs `@InjectMocks`?**
+`@Mock` creates a mock dependency; `@InjectMocks` instantiates the real class under test
+and injects the mocks into it.
+
+**Q: When do you `verify` vs assert a return value?**
+Assert the return value for query methods; `verify` for interactions/side effects (a
+save, a message sent) that don't show up in the return value.
+
+**Q: What's an ArgumentCaptor for?**
+To capture and assert on the exact argument passed to a mock.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- JUnit 5 lifecycle + AssertJ assertions.
+- Mockito `@Mock`/`@InjectMocks`, `when/thenReturn`, `verify`.
+- Mock collaborators, not the class under test.
+
+### 🟡 Good to Know
+- ArgumentCaptor; `doThrow` for void methods; strict stubbing.
+- Parameterized tests (`@CsvSource`, `@ValueSource`).
+
+### 🟢 Nice to Know
+- `@Nested` for grouping; test data builders.
+- `BigDecimal` comparison pitfalls.

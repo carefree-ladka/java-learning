@@ -1,0 +1,120 @@
+---
+id: case-studies
+title: "System Design Case Study Catalog"
+sidebar_label: "Case Study Catalog"
+sidebar_position: 23
+description: A tiered catalog of system design practice problems — easy, medium, and advanced — each with the key challenge and approach.
+---
+
+# System Design Case Study Catalog
+
+Once you know the [core concepts](/docs/system-design/concepts/fundamentals/), spend
+most of your practice time here. For each problem, work the framework end to end:
+
+<Important>
+**The framework — apply it every time:** Requirements (functional + non-functional) →
+back-of-envelope estimation (QPS, storage) → APIs → data model → high-level
+architecture → database choice → scaling → caching → messaging → failure scenarios →
+trade-offs. Interviewers score your **process**, not a memorized answer.
+</Important>
+
+<ProgressTracker id="sd-case-studies" />
+
+## Table of Contents
+
+- [How to practice](#how-to-practice)
+- [Easy](#easy)
+- [Medium](#medium)
+- [Advanced](#advanced)
+- [Recurring building blocks](#recurring-building-blocks)
+
+## How to practice
+
+Start easy to internalize the framework, then move up. Time-box yourself to ~40
+minutes per problem and **draw the diagram**. Fully worked examples live in
+[URL Shortener](/docs/system-design/url-shortener/),
+[Rate Limiter](/docs/system-design/rate-limiter/), and
+[8 More Systems](/docs/system-design/more-designs/).
+
+## Easy
+
+Single-purpose systems that teach the fundamentals.
+
+| System | Key challenge | Approach highlights |
+| --- | --- | --- |
+| **URL Shortener** | Read-heavy, unique short codes | Base62 counter/range, cache + replicas, 301 redirects — [full design](/docs/system-design/url-shortener/) |
+| **Pastebin** | Store + serve text blobs | Object storage for content, DB for metadata, TTL/expiry, CDN for reads |
+| **Rate Limiter** | Accurate, distributed, low-latency | Token bucket / sliding window in Redis, atomic Lua — [full design](/docs/system-design/rate-limiter/) |
+| **File Upload Service** | Large files, scalable storage | Presigned URLs to S3, multipart upload, CDN — [design](/docs/system-design/more-designs/) |
+| **Notification Service** | Multi-channel, async, retries | Kafka + per-channel workers, DLQ, idempotency — [design](/docs/system-design/more-designs/) |
+
+<Tip>
+The easy tier is where you cement estimation and the read-heavy playbook (cache +
+replicas + CDN). Nail these before moving on — mediums reuse them constantly.
+</Tip>
+
+## Medium
+
+Real products combining many concepts.
+
+| System | Key challenge | Approach highlights |
+| --- | --- | --- |
+| **Twitter/X Feed** | Fan-out to timelines at scale | Fan-out on write vs read; **hybrid** for celebrities; precomputed feeds in Redis; keyset pagination |
+| **Instagram** | Media + feed | S3 + CDN for media, feed service, metadata in DB, async processing |
+| **WhatsApp / Chat** | Realtime, delivery/read receipts | WebSockets, message queue per user, presence, at-least-once + dedupe |
+| **YouTube / Netflix** | Video storage + streaming | Object storage, transcoding pipeline, CDN edge delivery, adaptive bitrate |
+| **Uber / Ride Matching** | Real-time geospatial matching | Geohash/quadtree or Redis GEO, matching service + distributed lock, WebSocket updates |
+| **Food Delivery** | Orders + tracking + matching | Order state machine, driver matching, live tracking, payments |
+| **Ticket Booking** | Prevent double-booking | Pessimistic lock / atomic decrement on seats, short holds with TTL, idempotent payment |
+| **E-commerce** | Catalog + cart + orders + payments | Cached catalog + replicas, transactional checkout, saga across payment/inventory — [design](/docs/system-design/more-designs/) |
+| **Payment System** | Exactly-once, auditable | Idempotency keys, double-entry ledger, outbox, reconciliation — [design](/docs/system-design/more-designs/) |
+
+<Warning>
+Booking, e-commerce, and payments hinge on **consistency**: never oversell seats or
+double-charge. Reach for atomic conditional updates (`UPDATE ... WHERE stock >= qty`),
+short-lived holds, idempotency keys, and sagas — not optimistic hand-waving.
+</Warning>
+
+## Advanced
+
+Large-scale distributed systems.
+
+| System | Key challenge | Approach highlights |
+| --- | --- | --- |
+| **Distributed Web Crawler** | Politeness, dedupe, scale | Frontier queue, per-domain rate limits, bloom filter for seen URLs, distributed workers |
+| **Google Drive** | Sync + storage + sharing | Chunked storage in S3, metadata DB, versioning, conflict resolution, presigned URLs |
+| **Google Docs** | Real-time collaboration | Operational Transform / CRDTs, WebSockets, presence, conflict-free merges |
+| **Distributed Job Scheduler** | Reliable, at-least-once, cron | Durable queue, leader election, idempotent workers, retries + DLQ |
+| **Kafka-like Messaging System** | Durable ordered log at scale | Partitioned append-only log, replication + ISR, consumer offsets, leader election |
+| **Distributed Cache** | Scalable, fault-tolerant KV | Consistent hashing ring, replication, TTL/eviction, gossip for membership |
+| **Search Engine** | Full-text search at scale | Inverted index, sharded index, ranking, crawler + indexer pipeline |
+| **Ad Serving System** | Low-latency, high-throughput bidding | Real-time bidding, budget pacing, feature store, heavy caching, eventual consistency |
+| **Large-scale Notification Platform** | Millions of sends, multi-channel | Kafka fan-out, per-channel workers, rate limiting per provider, DLQ, templating |
+
+<Interview>
+For advanced systems, lead with **estimation and bottleneck identification**, then
+apply the right building block: consistent hashing (distributed cache/crawler),
+partitioned logs (messaging), inverted index (search), CRDT/OT (collaboration). Show
+you know **which** concept solves the crux, and discuss failure modes and trade-offs.
+</Interview>
+
+## Recurring building blocks
+
+Notice the same tools solving many problems — that's the point:
+
+| Building block | Appears in |
+| --- | --- |
+| Cache + read replicas + CDN | Every read-heavy system |
+| Queue + workers + DLQ | Notifications, jobs, crawler, video transcoding |
+| Consistent hashing | Distributed cache, crawler, sharded stores |
+| Idempotency + saga + outbox | Payments, e-commerce, booking, jobs |
+| Geospatial index | Uber, food delivery, "nearby" search |
+| Presigned URLs + object storage | File upload, Drive, YouTube, Instagram |
+| WebSockets | Chat, Docs, ride tracking |
+| Bloom filter | Crawler dedupe, cache penetration |
+
+<Tip>
+Master the [core concepts](/docs/system-design/concepts/fundamentals/) and these
+building blocks, and every case study becomes an assembly problem rather than a
+memorization exercise.
+</Tip>

@@ -1,0 +1,177 @@
+---
+id: binary-search
+title: "6. Binary Search"
+sidebar_label: 6. Binary Search
+sidebar_position: 7
+description: Binary search as a pattern — boundaries (lower/upper bound), rotated arrays, and the powerful binary-search-on-the-answer technique.
+---
+
+# 6. Binary Search
+
+Binary search is a **pattern**, not just an array-search algorithm. Once you can
+"search the answer space", a whole class of optimization problems becomes O(n log n).
+
+<ProgressTracker id="dsa-binary-search" />
+
+## Table of Contents
+
+- [The template](#the-template)
+- [Boundaries: lower & upper bound](#boundaries-lower--upper-bound)
+- [Rotated arrays](#rotated-arrays)
+- [Binary search on the answer](#binary-search-on-the-answer)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## The template
+
+```java
+// Classic: find target in a sorted array — O(log n)
+int search(int[] a, int target) {
+    int lo = 0, hi = a.length - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;    // never (lo+hi)/2 — overflow
+        if (a[mid] == target) return mid;
+        if (a[mid] < target) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return -1;
+}
+```
+
+<Warning>
+Two eternal bugs: `mid` overflow (use `lo + (hi - lo) / 2`) and infinite loops from
+wrong boundary updates. Pick one template style (`lo <= hi` with `mid ± 1`) and use it
+consistently.
+</Warning>
+
+## Boundaries: lower & upper bound
+
+Find the **first** index where a condition becomes true — the basis for first/last
+occurrence and insert position.
+
+```java
+// Lower bound: first index with a[i] >= target (insertion point)
+int lowerBound(int[] a, int target) {
+    int lo = 0, hi = a.length;          // note: hi = length (exclusive)
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] < target) lo = mid + 1;
+        else hi = mid;                  // keep mid as a candidate
+    }
+    return lo;
+}
+
+// First and last occurrence of target
+int[] searchRange(int[] a, int target) {
+    int first = lowerBound(a, target);
+    if (first == a.length || a[first] != target) return new int[]{-1, -1};
+    int last = lowerBound(a, target + 1) - 1;
+    return new int[]{first, last};
+}
+```
+
+## Rotated arrays
+
+### Search in Rotated Sorted Array — [LeetCode 33](https://leetcode.com/problems/search-in-rotated-sorted-array/)
+
+```java
+// OPTIMAL — O(log n): one half is always sorted; decide which side to keep
+int searchRotated(int[] a, int target) {
+    int lo = 0, hi = a.length - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] == target) return mid;
+        if (a[lo] <= a[mid]) {                       // left half sorted
+            if (a[lo] <= target && target < a[mid]) hi = mid - 1;
+            else lo = mid + 1;
+        } else {                                     // right half sorted
+            if (a[mid] < target && target <= a[hi]) lo = mid + 1;
+            else hi = mid - 1;
+        }
+    }
+    return -1;
+}
+```
+
+### Find Minimum in Rotated Sorted Array — [LeetCode 153](https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/)
+
+```java
+int findMin(int[] a) {
+    int lo = 0, hi = a.length - 1;
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] > a[hi]) lo = mid + 1;   // min is to the right
+        else hi = mid;                       // min is mid or to the left
+    }
+    return a[lo];
+}
+```
+
+## Binary search on the answer
+
+<Important>
+The high-value pattern. When the answer is a number in a range and there's a
+**monotonic** feasibility test — "if X works, everything larger (or smaller) also works"
+— binary search the **answer value**, not the array. Ask at each `mid`: *can this
+answer work?*
+</Important>
+
+```text
+Search space  ──►  mid  ──►  canWork(mid)?
+                                  YES → try to do better (shrink one side)
+                                  NO  → need to relax  (shrink the other)
+```
+
+### Koko Eating Bananas — [LeetCode 875](https://leetcode.com/problems/koko-eating-bananas/)
+
+```java
+// OPTIMAL — O(n log maxPile): binary search the eating speed
+int minEatingSpeed(int[] piles, int h) {
+    int lo = 1, hi = Arrays.stream(piles).max().getAsInt();
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (canFinish(piles, h, mid)) hi = mid;   // slower might still work
+        else lo = mid + 1;                        // too slow, speed up
+    }
+    return lo;
+}
+boolean canFinish(int[] piles, int h, int speed) {
+    long hours = 0;
+    for (int p : piles) hours += (p + speed - 1) / speed;   // ceil division
+    return hours <= h;
+}
+```
+
+<Interview>
+Recognizing "binary search on the answer": the problem asks for a **minimum/maximum
+value** subject to a constraint, and larger values are "easier"/smaller are "harder"
+(monotonic). Examples: *Capacity to Ship Packages*, *Split Array Largest Sum*,
+*Minimum Days to Make M Bouquets*, *Aggressive Cows*. Write the `canWork(x)` predicate
+first, then binary search over x.
+</Interview>
+
+## Problem checklist
+
+- [Binary Search](https://leetcode.com/problems/binary-search/) · template
+- [Search Insert Position](https://leetcode.com/problems/search-insert-position/) · lower bound
+- [Find First and Last Position](https://leetcode.com/problems/find-first-and-last-position-of-element-in-sorted-array/) · boundaries
+- [Search in Rotated Sorted Array](https://leetcode.com/problems/search-in-rotated-sorted-array/) · rotated
+- [Find Minimum in Rotated Sorted Array](https://leetcode.com/problems/find-minimum-in-rotated-sorted-array/) · rotated
+- [Koko Eating Bananas](https://leetcode.com/problems/koko-eating-bananas/) · answer search
+- [Capacity To Ship Packages Within D Days](https://leetcode.com/problems/capacity-to-ship-packages-within-d-days/) · answer search
+- [Split Array Largest Sum](https://leetcode.com/problems/split-array-largest-sum/) · answer search
+- [Median of Two Sorted Arrays](https://leetcode.com/problems/median-of-two-sorted-arrays/) · partition search
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Safe `mid`; the `lo <= hi` template.
+- Lower/upper bound for first/last occurrence.
+- Binary search on the answer with a monotonic `canWork` predicate.
+
+### 🟡 Good to Know
+- Rotated-array search (identify the sorted half).
+- Ceil division `(p + s - 1) / s`.
+
+### 🟢 Nice to Know
+- Median of two sorted arrays via partition binary search.

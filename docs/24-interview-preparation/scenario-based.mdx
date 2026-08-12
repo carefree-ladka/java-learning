@@ -1,0 +1,152 @@
+---
+id: scenario-based
+title: "Scenario-Based Questions (Q307–319)"
+sidebar_label: 🎯 Scenario-Based
+sidebar_position: 6
+description: Real-world backend troubleshooting and design scenarios — slow startup, slow APIs, OOM, 503s, JWT logout, rate limiting, SSO, LazyInitializationException, concurrent updates, and partial failures.
+---
+
+# Scenario-Based Questions (Q307–319)
+
+These test judgment, not recall. Interviewers want a **structured approach**: clarify →
+form hypotheses → gather evidence → fix → prevent. Think out loud.
+
+<ProgressTracker id="iq-scenarios" />
+
+## Real-world problem solving (307–319)
+
+### 307. Spring Boot app is slow to start in production. How do you troubleshoot?
+
+**Approach:** measure first with startup logs / `ApplicationStartup` (`BufferingApplicationStartup`)
+or `-Ddebug`. Common culprits:
+- **Component scanning** too broad, or heavy `@PostConstruct` work (cache warming, remote
+  calls) blocking startup.
+- **Slow DB / connection pool** init, Flyway migrations, or a blocked network dependency.
+- **Eager bean init** of expensive beans — make them `@Lazy`.
+- Large classpath / lack of CDS/AOT.
+
+**Fixes:** narrow scanning, defer heavy work off the startup path, add connection/read
+timeouts, lazy-init, and consider AOT/native (Spring Native) for fast cold starts.
+
+### 308. REST APIs are slow after deployment. How do you identify the issue?
+
+**Approach:** look at the golden signals (latency p95/p99, error rate, throughput,
+saturation) and traces first.
+- **Database:** N+1 queries, missing indexes, slow queries — check `EXPLAIN` and query
+  counts ([N+1](/docs/spring-data-jpa/n-plus-one/)).
+- **Downstream calls:** a slow dependency without a timeout.
+- **GC pauses / CPU / connection-pool exhaustion.**
+- **Cold caches** after restart.
+
+**Fixes:** add indexes/fetch joins, cache hot reads, add timeouts + circuit breakers,
+size pools, and profile the hot path with a trace.
+
+### 309. Application throws OutOfMemoryError under high load. How to resolve?
+
+**Approach:** enable `-XX:+HeapDumpOnOutOfMemoryError`, analyze the dump in MAT for the
+dominator tree.
+- **Leaks:** unbounded caches/collections, static maps, uncleared `ThreadLocal`s in pools.
+- **Load-driven:** genuinely too much live data (large result sets, unbounded queues,
+  buffering big files/responses).
+
+**Fixes:** bound caches (eviction/TTL), stream large payloads instead of buffering, page
+queries, right-size the heap relative to the container, and fix the specific retained
+references. See [JVM leaks](/docs/jvm/#memory-leaks--errors).
+
+### 310. Service returns 503 during peak traffic. What could be the cause?
+
+**Causes:** thread pool / connection pool exhausted, load shedding, a saturated downstream,
+or a tripped circuit breaker.
+
+**Fixes:** autoscale, add bounded queues with backpressure (`CallerRunsPolicy`), rate-limit
+at the gateway (429), add caching/replicas to relieve the bottleneck, and isolate
+dependencies with bulkheads. See [Reliability](/docs/system-design/concepts/reliability/).
+
+### 311. How to implement logout with JWT tokens?
+
+JWTs are stateless — you can't "delete" an access token server-side. Options:
+- Keep **access tokens short-lived** and revoke the **refresh token** (delete it from a
+  server-side store / bump a per-user token version).
+- Maintain a **denylist** (in Redis with TTL = token's remaining life) checked by the auth
+  filter.
+
+See [JWT](/docs/security/jwt-authentication/#access-vs-refresh-tokens).
+
+### 312. Design a rate-limiting strategy for a public API.
+
+Choose an algorithm (**token bucket** for bursts, **sliding window** for accuracy), key by
+API key/user/IP, store counters in **Redis** (atomic `INCR`/Lua) so it works across
+instances, and return **429** with `Retry-After` and `X-RateLimit-*` headers. Enforce at
+the API gateway. See [rate limiter](/docs/system-design/rate-limiter/).
+
+### 313. How would you implement SSO across multiple applications?
+
+Use a central **identity provider** with **OAuth2/OIDC** (or SAML). Users authenticate once
+at the IdP; apps are resource servers/clients that trust IdP-issued tokens, so one login
+grants access to all. Add refresh tokens and central logout. See
+[OAuth2](/docs/system-design/concepts/security/#oauth2--openid-connect).
+
+### 314. E-commerce product catalog service is slow. Optimization strategies?
+
+- **Cache** the catalog in Redis (cache-aside + TTL); it's read-heavy and rarely changes.
+- **Read replicas** and proper **indexes**; fix N+1 with fetch joins.
+- **CDN** for images/static; **keyset pagination** for large listings.
+- Precompute/denormalize hot views. See [E-commerce design](/docs/system-design/more-designs/#3-e-commerce-backend).
+
+### 315. You encounter LazyInitializationException. Cause and fix?
+
+**Cause:** accessing a **lazy** association **after** the persistence context/transaction
+has closed (e.g. in the controller or during serialization), so Hibernate can't load it.
+
+**Fixes (best first):** fetch what you need inside the transaction via a **`JOIN FETCH`** or
+**`@EntityGraph`**; map to a **DTO** inside the service; or use projections. Avoid
+`open-session-in-view` and blanket EAGER. See [N+1 / fetching](/docs/spring-data-jpa/n-plus-one/).
+
+### 316. Two users update the same record simultaneously. How to handle?
+
+Prevent the **lost update** with locking:
+- **Optimistic locking** (`@Version`): the second commit fails with
+  `OptimisticLockException` → return **409 Conflict** and let the client retry/merge. Best
+  for low contention.
+- **Pessimistic locking** (`SELECT ... FOR UPDATE`): serialize access to hot rows.
+
+See [locking](/docs/database/transactions-isolation/#optimistic-vs-pessimistic-locking).
+
+### 317. How to migrate a monolith to microservices?
+
+Use the **Strangler Fig** pattern: don't rewrite big-bang. Route slices of traffic to new
+services behind a facade/gateway, extract by **bounded context** (start with a loosely
+coupled module), give each service its **own database**, and use events/**outbox** for
+cross-service consistency. Retire the monolith incrementally. See
+[strangler fig](/docs/system-design/concepts/design-patterns/#migration--deployment-patterns).
+
+### 318. Microservice A depends on B, C, D. B is down. Prevent cascade failures?
+
+Isolate and degrade:
+- **Timeout** every call to B so threads aren't held.
+- **Circuit breaker** opens after failures — fail fast with a **fallback** (cached/default).
+- **Bulkhead** — separate thread pools so B's slowness can't exhaust all of A's threads.
+- **Graceful degradation** — return partial results if B is non-critical.
+
+Resilience4j provides all of these. See [Reliability](/docs/system-design/concepts/reliability/).
+
+### 319. API call partially fails (some data saved, some not). How to handle?
+
+This is the distributed-consistency problem. Approaches:
+- **Local transaction** if all writes are in one database — atomic rollback.
+- Across services: the **Saga** pattern with **compensating transactions** to undo
+  completed steps.
+- **Idempotency keys** so safe retries don't double-apply.
+- The **outbox pattern** so the DB write and event publish are atomic (no dual-write
+  inconsistency).
+
+See [Distributed Transactions](/docs/system-design/concepts/distributed-transactions/).
+
+## How to ace scenario questions
+
+<Tip>
+Structure every answer: **(1) clarify** the symptom and scope, **(2) hypothesize** likely
+causes, **(3) gather evidence** (metrics, logs, traces, dumps, EXPLAIN), **(4) fix** the
+root cause, **(5) prevent** recurrence (tests, alerts, guardrails). Naming the *tools* you'd
+use — MAT, `jstack`, traces, `EXPLAIN` — signals real production experience.
+</Tip>

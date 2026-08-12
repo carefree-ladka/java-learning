@@ -1,0 +1,208 @@
+---
+id: index
+title: Generics
+sidebar_label: Generics
+sidebar_position: 0
+slug: /generics/
+description: Generic classes and methods, bounded types, wildcards, PECS, and type erasure — with backend examples.
+---
+
+# Generics
+
+Generics give you compile-time type safety and eliminate casts. Every repository
+(`JpaRepository<User, Long>`), every `List<OrderDto>`, and every `ResponseEntity<T>`
+is generics in action.
+
+<ProgressTracker id="generics-overview" />
+
+## Table of Contents
+
+- [Why generics?](#why-generics)
+- [Generic classes](#generic-classes)
+- [Generic methods](#generic-methods)
+- [Bounded type parameters](#bounded-type-parameters)
+- [Wildcards and PECS](#wildcards-and-pecs)
+- [Type erasure](#type-erasure)
+- [Backend usage](#backend-usage)
+- [Common mistakes](#common-mistakes)
+- [Most Asked Interview Questions](#most-asked-interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Why generics?
+
+Before generics, collections held `Object` and required casting, which failed at
+runtime. Generics move those errors to compile time.
+
+```java
+// Pre-generics: unsafe
+List names = new ArrayList();
+names.add("ok");
+String s = (String) names.get(0);   // cast, can throw ClassCastException
+
+// Generics: safe
+List<String> safe = new ArrayList<>();
+safe.add("ok");
+String t = safe.get(0);             // no cast, compiler-checked
+```
+
+## Generic classes
+
+```java
+public class Box<T> {
+    private T value;
+    public void set(T value) { this.value = value; }
+    public T get() { return value; }
+}
+
+Box<String> b = new Box<>();
+b.set("hello");
+String v = b.get();   // no cast needed
+```
+
+A generic **repository** is the canonical backend example:
+
+```java
+public interface Repository<T, ID> {
+    Optional<T> findById(ID id);
+    List<T> findAll();
+    T save(T entity);
+}
+```
+
+## Generic methods
+
+A method can declare its own type parameter, independent of the class.
+
+```java
+public static <T> T firstOrDefault(List<T> list, T fallback) {
+    return list.isEmpty() ? fallback : list.get(0);
+}
+
+String x = firstOrDefault(List.of("a", "b"), "none");   // T inferred as String
+```
+
+## Bounded type parameters
+
+Constrain a type with `extends` (upper bound) so you can call methods on it.
+
+```java
+// Only accept Numbers, so we can call doubleValue()
+public static <T extends Number> double sum(List<T> nums) {
+    double total = 0;
+    for (T n : nums) total += n.doubleValue();
+    return total;
+}
+```
+
+## Wildcards and PECS
+
+Wildcards express "some unknown type" for flexible APIs.
+
+- `<?>` — unknown type (read as `Object`, can't add).
+- `<? extends T>` — some subtype of `T`. **Producer**: you read `T` out.
+- `<? super T>` — some supertype of `T`. **Consumer**: you write `T` in.
+
+<Important>
+**PECS — Producer Extends, Consumer Super.** If a parameter *produces* values you
+read, use `? extends T`. If it *consumes* values you put in, use `? super T`.
+</Important>
+
+```java
+// Producer: read Numbers out -> extends
+double total = sum(List.<Integer>of(1, 2, 3));   // List<? extends Number>
+
+// Consumer: write Integers in -> super
+public static void addNumbers(List<? super Integer> sink) {
+    sink.add(1);
+    sink.add(2);
+}
+addNumbers(new ArrayList<Number>());   // Number is a supertype of Integer
+```
+
+`Collections.copy(dest, src)` is the classic PECS signature:
+
+```java
+public static <T> void copy(List<? super T> dest, List<? extends T> src) { ... }
+//                                ^ consumer            ^ producer
+```
+
+## Type erasure
+
+Generics are a **compile-time** feature. The compiler erases type parameters and
+inserts casts, so at runtime `List<String>` and `List<Integer>` are both just
+`List`. Consequences:
+
+```java
+List<String> a = new ArrayList<>();
+List<Integer> b = new ArrayList<>();
+a.getClass() == b.getClass();   // true — same raw class at runtime
+
+// You cannot do these because the type isn't available at runtime:
+// new T();            // no
+// new T[10];          // no
+// if (x instanceof List<String>)   // no — only List<?>
+```
+
+<Warning>
+Because of erasure you cannot overload two methods that differ only by generic type
+(`foo(List<String>)` and `foo(List<Integer>)` clash), and you cannot create generic
+arrays directly.
+</Warning>
+
+## Backend usage
+
+<Backend>
+`ResponseEntity<T>`, `Page<T>`, `Optional<T>`, and `JpaRepository<T, ID>` are all
+generic. A common pattern is a generic API envelope:
+
+```java
+public record ApiResponse<T>(boolean success, T data, String error) {
+    public static <T> ApiResponse<T> ok(T data) {
+        return new ApiResponse<>(true, data, null);
+    }
+    public static <T> ApiResponse<T> fail(String error) {
+        return new ApiResponse<>(false, null, error);
+    }
+}
+```
+</Backend>
+
+## Common mistakes
+
+<Warning>
+- Using raw types (`List` instead of `List<String>`), losing all type safety.
+- Expecting runtime type info from generics (blocked by erasure).
+- Getting PECS backwards, producing "cannot add" or "cannot read as T" errors.
+</Warning>
+
+## Most Asked Interview Questions
+
+### Beginner
+- What problem do generics solve?
+- What is a bounded type parameter?
+
+### Intermediate
+- Explain PECS with an example.
+- Difference between `<?>`, `<? extends T>`, and `<? super T>`?
+
+### Advanced
+- What is type erasure and what does it prevent?
+- Why can't you create `new T[]` or `new T()`?
+
+### Coding
+- Write a generic method that returns the max element of a `List<T extends Comparable<T>>`.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Generic classes/methods and bounded types.
+- PECS: Producer Extends, Consumer Super.
+- Type erasure and its limitations.
+
+### 🟡 Good to Know
+- Multiple bounds (`<T extends A & B>`).
+- Why generic arrays are disallowed.
+
+### 🟢 Nice to Know
+- Reifiable vs non-reifiable types.
+- Capturing wildcards and helper methods.

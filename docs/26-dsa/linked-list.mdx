@@ -1,0 +1,206 @@
+---
+id: linked-list
+title: "4. Linked List"
+sidebar_label: 4. Linked List
+sidebar_position: 5
+description: Linked list patterns — fast & slow pointers, reversal, dummy nodes, and merging — with full Java code.
+---
+
+# 4. Linked List
+
+Linked list problems test pointer manipulation. Three patterns cover almost all of
+them: **fast & slow pointers**, **iterative reversal**, and the **dummy node**.
+
+<ProgressTracker id="dsa-linked-list" />
+
+## Table of Contents
+
+- [The node](#the-node)
+- [Pattern: fast & slow pointers](#pattern-fast--slow-pointers)
+- [Pattern: reversal](#pattern-reversal)
+- [Pattern: dummy node](#pattern-dummy-node)
+- [Merging](#merging)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## The node
+
+```java
+class ListNode {
+    int val;
+    ListNode next;
+    ListNode(int val) { this.val = val; }
+    ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+}
+```
+
+<Tip>
+Draw the pointers on paper. Nearly every linked-list bug is a mis-ordered assignment
+(losing a node because you overwrote `next` before saving it). Save the next pointer
+first.
+</Tip>
+
+## Pattern: fast & slow pointers
+
+Advance one pointer twice as fast as the other to find the middle, detect cycles, or
+find a cycle's start (Floyd's algorithm).
+
+### Middle of the Linked List — [LeetCode 876](https://leetcode.com/problems/middle-of-the-linked-list/)
+
+```java
+// OPTIMAL — O(n) time, O(1) space: slow ends at the middle
+ListNode middleNode(ListNode head) {
+    ListNode slow = head, fast = head;
+    while (fast != null && fast.next != null) { slow = slow.next; fast = fast.next.next; }
+    return slow;
+}
+```
+
+### Linked List Cycle — [LeetCode 141](https://leetcode.com/problems/linked-list-cycle/)
+
+```java
+// BRUTE FORCE — O(n) time, O(n) space: remember visited nodes
+boolean hasCycleBrute(ListNode head) {
+    Set<ListNode> seen = new HashSet<>();
+    for (ListNode n = head; n != null; n = n.next)
+        if (!seen.add(n)) return true;
+    return false;
+}
+
+// OPTIMAL (Floyd) — O(n) time, O(1) space: fast catches slow inside a cycle
+boolean hasCycle(ListNode head) {
+    ListNode slow = head, fast = head;
+    while (fast != null && fast.next != null) {
+        slow = slow.next;
+        fast = fast.next.next;
+        if (slow == fast) return true;
+    }
+    return false;
+}
+```
+
+<Important>
+Floyd's cycle detection uses O(1) space vs the hash-set's O(n). To find the cycle's
+**start**, after they meet, move one pointer back to `head` and advance both one step at
+a time — they meet at the entry node.
+</Important>
+
+## Pattern: reversal
+
+### Reverse Linked List — [LeetCode 206](https://leetcode.com/problems/reverse-linked-list/)
+
+```java
+// OPTIMAL — O(n) time, O(1) space: flip next pointers one by one
+ListNode reverseList(ListNode head) {
+    ListNode prev = null, cur = head;
+    while (cur != null) {
+        ListNode next = cur.next;   // save before overwriting
+        cur.next = prev;            // reverse the link
+        prev = cur;                 // advance prev
+        cur = next;                 // advance cur
+    }
+    return prev;                    // new head
+}
+```
+
+### Reverse Nodes in k-Group — [LeetCode 25](https://leetcode.com/problems/reverse-nodes-in-k-group/)
+
+```java
+// Reverse each block of k; leave a trailing shorter block as-is
+ListNode reverseKGroup(ListNode head, int k) {
+    ListNode node = head;
+    for (int i = 0; i < k; i++) {         // check there are k nodes
+        if (node == null) return head;
+        node = node.next;
+    }
+    ListNode prev = reverseKGroup(node, k);   // reverse the rest first
+    ListNode cur = head;
+    for (int i = 0; i < k; i++) {             // reverse this block, link to prev
+        ListNode next = cur.next;
+        cur.next = prev;
+        prev = cur;
+        cur = next;
+    }
+    return prev;
+}
+```
+
+## Pattern: dummy node
+
+A dummy head node removes edge cases when the real head might change (deletions,
+insertions at front).
+
+### Remove Nth Node From End — [LeetCode 19](https://leetcode.com/problems/remove-nth-node-from-end-of-list/)
+
+```java
+// OPTIMAL — O(n), one pass: fast leads slow by n, then delete slow.next
+ListNode removeNthFromEnd(ListNode head, int n) {
+    ListNode dummy = new ListNode(0, head);
+    ListNode fast = dummy, slow = dummy;
+    for (int i = 0; i < n; i++) fast = fast.next;   // fast leads by n
+    while (fast.next != null) { fast = fast.next; slow = slow.next; }
+    slow.next = slow.next.next;                     // unlink the target
+    return dummy.next;
+}
+```
+
+## Merging
+
+### Merge Two Sorted Lists — [LeetCode 21](https://leetcode.com/problems/merge-two-sorted-lists/)
+
+```java
+// OPTIMAL — O(n + m): weave the smaller head each step
+ListNode mergeTwoLists(ListNode a, ListNode b) {
+    ListNode dummy = new ListNode(0), tail = dummy;
+    while (a != null && b != null) {
+        if (a.val <= b.val) { tail.next = a; a = a.next; }
+        else { tail.next = b; b = b.next; }
+        tail = tail.next;
+    }
+    tail.next = (a != null) ? a : b;   // attach the remainder
+    return dummy.next;
+}
+```
+
+### Merge K Sorted Lists — [LeetCode 23](https://leetcode.com/problems/merge-k-sorted-lists/)
+
+```java
+// OPTIMAL — O(N log k) with a min-heap of the current heads
+ListNode mergeKLists(ListNode[] lists) {
+    PriorityQueue<ListNode> pq = new PriorityQueue<>((x, y) -> x.val - y.val);
+    for (ListNode l : lists) if (l != null) pq.offer(l);
+    ListNode dummy = new ListNode(0), tail = dummy;
+    while (!pq.isEmpty()) {
+        ListNode node = pq.poll();
+        tail.next = node; tail = node;
+        if (node.next != null) pq.offer(node.next);
+    }
+    return dummy.next;
+}
+```
+
+## Problem checklist
+
+- [Reverse Linked List](https://leetcode.com/problems/reverse-linked-list/) · reversal
+- [Merge Two Sorted Lists](https://leetcode.com/problems/merge-two-sorted-lists/) · dummy node
+- [Linked List Cycle](https://leetcode.com/problems/linked-list-cycle/) · fast/slow
+- [Reorder List](https://leetcode.com/problems/reorder-list/) · middle + reverse + merge
+- [Remove Nth Node From End](https://leetcode.com/problems/remove-nth-node-from-end-of-list/) · two pointers
+- [Merge K Sorted Lists](https://leetcode.com/problems/merge-k-sorted-lists/) · heap
+- [Reverse Nodes in k-Group](https://leetcode.com/problems/reverse-nodes-in-k-group/) · reversal
+- [LRU Cache](https://leetcode.com/problems/lru-cache/) · HashMap + doubly-linked list
+- [Palindrome Linked List](https://leetcode.com/problems/palindrome-linked-list/) · middle + reverse
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Fast/slow for middle and cycle detection.
+- Iterative reversal (save-next, flip, advance).
+- Dummy node to simplify head changes.
+
+### 🟡 Good to Know
+- Floyd's cycle-start finding.
+- Merge-K with a heap (O(N log k)).
+
+### 🟢 Nice to Know
+- LRU cache via HashMap + doubly-linked list (O(1) ops).

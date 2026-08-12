@@ -1,0 +1,158 @@
+---
+id: bit-manipulation
+title: "16. Bit Manipulation"
+sidebar_label: 16. Bit Manipulation
+sidebar_position: 17
+description: Bitwise operators and the tricks that solve interview problems — XOR cancellation, masks, check/set/clear bits, power of two, and subset enumeration.
+---
+
+# 16. Bit Manipulation
+
+Bit tricks are compact, fast, and often the *intended* optimal solution. Master the
+operators and a few identities and a class of problems becomes O(1) space.
+
+<ProgressTracker id="dsa-bit-manipulation" />
+
+## Table of Contents
+
+- [Operators](#operators)
+- [Essential tricks](#essential-tricks)
+- [XOR cancellation](#xor-cancellation)
+- [Counting bits](#counting-bits)
+- [Power of two](#power-of-two)
+- [Subsets via bitmask](#subsets-via-bitmask)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## Operators
+
+| Operator | Meaning | Example |
+| --- | --- | --- |
+| `&` | AND | `6 & 3 = 2` |
+| `\|` | OR | `6 \| 3 = 7` |
+| `^` | XOR | `6 ^ 3 = 5` |
+| `~` | NOT | `~5 = -6` |
+| `<<` | left shift (×2) | `1 << 3 = 8` |
+| `>>` | arithmetic right shift | `-8 >> 1 = -4` |
+| `>>>` | logical right shift (fills 0) | `-1 >>> 28 = 15` |
+
+<Warning>
+`>>` preserves the sign bit (arithmetic); `>>>` fills with zeros (logical). For
+unsigned-style bit work on ints, use `>>>`. `Integer.bitCount(x)` counts set bits
+without a loop.
+</Warning>
+
+## Essential tricks
+
+```java
+int getBit(int x, int i)   { return (x >> i) & 1; }        // read bit i
+int setBit(int x, int i)   { return x | (1 << i); }        // set bit i to 1
+int clearBit(int x, int i) { return x & ~(1 << i); }       // clear bit i to 0
+int toggleBit(int x, int i){ return x ^ (1 << i); }        // flip bit i
+
+boolean isSet(int x, int i){ return (x & (1 << i)) != 0; }
+int lowestSetBit(int x)    { return x & (-x); }            // isolate lowest 1-bit
+int clearLowest(int x)     { return x & (x - 1); }         // drop lowest 1-bit
+```
+
+<Important>
+`x & (x - 1)` clears the lowest set bit — repeatedly applying it counts set bits in O(number
+of 1s) (Brian Kernighan's algorithm). `x & (-x)` isolates the lowest set bit — the core
+of Fenwick trees ([Advanced](/docs/dsa/advanced-data-structures/)).
+</Important>
+
+## XOR cancellation
+
+XOR is its own inverse: `a ^ a = 0` and `a ^ 0 = a`. So XORing everything cancels pairs
+and leaves the unique element.
+
+### Single Number — [LeetCode 136](https://leetcode.com/problems/single-number/)
+
+```java
+// OPTIMAL — O(n) time, O(1) space: pairs cancel, the loner remains
+int singleNumber(int[] nums) {
+    int x = 0;
+    for (int n : nums) x ^= n;
+    return x;
+}
+```
+
+### Missing Number — [LeetCode 268](https://leetcode.com/problems/missing-number/)
+
+```java
+// XOR indices with values; the missing number survives
+int missingNumber(int[] nums) {
+    int x = nums.length;
+    for (int i = 0; i < nums.length; i++) x ^= i ^ nums[i];
+    return x;
+}
+```
+
+## Counting bits
+
+### Counting Bits — [LeetCode 338](https://leetcode.com/problems/counting-bits/)
+
+```java
+// dp[i] = dp[i >> 1] + (i & 1): bits of i = bits of i/2 plus the last bit
+int[] countBits(int n) {
+    int[] dp = new int[n + 1];
+    for (int i = 1; i <= n; i++) dp[i] = dp[i >> 1] + (i & 1);
+    return dp;
+}
+```
+
+## Power of two
+
+```java
+// A power of two has exactly one set bit -> x & (x-1) == 0
+boolean isPowerOfTwo(int x) { return x > 0 && (x & (x - 1)) == 0; }
+```
+
+## Subsets via bitmask
+
+Enumerate all `2^n` subsets by treating an int's bits as "included" flags.
+
+```java
+// Iterative subsets — O(2^n * n)
+List<List<Integer>> subsets(int[] nums) {
+    int n = nums.length;
+    List<List<Integer>> res = new ArrayList<>();
+    for (int mask = 0; mask < (1 << n); mask++) {       // 0 .. 2^n - 1
+        List<Integer> sub = new ArrayList<>();
+        for (int i = 0; i < n; i++)
+            if ((mask & (1 << i)) != 0) sub.add(nums[i]);  // bit i set -> include
+        res.add(sub);
+    }
+    return res;
+}
+```
+
+<Tip>
+Bitmasks also encode small sets as DP state ("bitmask DP") — e.g. the Traveling
+Salesman DP uses `dp[mask][i]` = best path visiting the set `mask` ending at `i`. Works
+when `n <= ~20`.
+</Tip>
+
+## Problem checklist
+
+- [Single Number](https://leetcode.com/problems/single-number/) · XOR
+- [Number of 1 Bits](https://leetcode.com/problems/number-of-1-bits/) · Kernighan
+- [Counting Bits](https://leetcode.com/problems/counting-bits/) · DP
+- [Missing Number](https://leetcode.com/problems/missing-number/) · XOR
+- [Reverse Bits](https://leetcode.com/problems/reverse-bits/)
+- [Sum of Two Integers](https://leetcode.com/problems/sum-of-two-integers/) · add without `+`
+- [Subsets](https://leetcode.com/problems/subsets/) · bitmask enumeration
+
+## Things You Should Know
+
+### 🔴 Must Know
+- The operators, especially `>>` vs `>>>`.
+- XOR cancellation for single/missing number.
+- `x & (x-1)` (clear lowest bit) and `x & -x` (isolate lowest bit).
+
+### 🟡 Good to Know
+- Check/set/clear/toggle bit idioms.
+- Power-of-two test; `Integer.bitCount`.
+
+### 🟢 Nice to Know
+- Bitmask enumeration and bitmask DP (TSP).

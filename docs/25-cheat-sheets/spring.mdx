@@ -1,0 +1,90 @@
+---
+id: spring
+title: "Cheat Sheet: Spring Boot Annotations"
+sidebar_label: Spring Annotations
+sidebar_position: 4
+description: The Spring Boot annotations you use daily, grouped by concern.
+---
+
+# Spring Boot Annotations Cheat Sheet
+
+<ProgressTracker id="cheat-spring" />
+
+## Bootstrapping & config
+
+| Annotation | Purpose |
+| --- | --- |
+| `@SpringBootApplication` | Config + auto-config + component scan |
+| `@Configuration` | Class of `@Bean` definitions |
+| `@Bean` | Declare a bean from a method |
+| `@ComponentScan` | Where to scan for components |
+| `@ConfigurationProperties` | Bind `application.yml` to a type |
+| `@Profile("prod")` | Activate beans per profile |
+| `@Value("${...}")` | Inject a single property |
+
+## Stereotypes & DI
+
+| Annotation | Purpose |
+| --- | --- |
+| `@Component` | Generic managed bean |
+| `@Service` | Business-logic bean |
+| `@Repository` | Data-access bean (+ exception translation) |
+| `@Controller` / `@RestController` | Web layer |
+| `@Autowired` | Inject (prefer constructor injection) |
+| `@Qualifier` / `@Primary` | Disambiguate multiple candidates |
+
+## Web / REST
+
+| Annotation | Purpose |
+| --- | --- |
+| `@RequestMapping` | Base path / method mapping |
+| `@GetMapping` `@PostMapping` `@PutMapping` `@PatchMapping` `@DeleteMapping` | HTTP verbs |
+| `@PathVariable` | Bind URI segment |
+| `@RequestParam` | Bind query param |
+| `@RequestBody` | Bind/deserialize JSON body |
+| `@RequestHeader` | Bind a header |
+| `@ResponseStatus` | Fixed status code |
+| `@Valid` | Trigger Bean Validation |
+| `@RestControllerAdvice` / `@ExceptionHandler` | Global error handling |
+
+## Validation
+
+`@NotNull` `@NotBlank` `@NotEmpty` `@Size` `@Min` `@Max` `@Email` `@Positive`
+`@Pattern` `@Past` `@Future`.
+
+## Data / JPA
+
+| Annotation | Purpose |
+| --- | --- |
+| `@Entity` / `@Table` | Map class to table |
+| `@Id` / `@GeneratedValue` | Primary key |
+| `@Column` | Column mapping |
+| `@ManyToOne` `@OneToMany` `@OneToOne` `@ManyToMany` | Relationships |
+| `@JoinColumn` / `mappedBy` | FK / inverse side |
+| `@Query` | JPQL or native query |
+| `@Transactional` | Transaction boundary |
+| `@Version` | Optimistic lock |
+| `@EntityGraph` | Fetch plan (avoid N+1) |
+
+## Security
+
+| Annotation | Purpose |
+| --- | --- |
+| `@EnableWebSecurity` | Enable Spring Security config |
+| `@EnableMethodSecurity` | Enable method-level rules |
+| `@PreAuthorize("hasRole('ADMIN')")` | Authorize a method |
+
+## Testing
+
+| Annotation | Purpose |
+| --- | --- |
+| `@SpringBootTest` | Full context integration test |
+| `@WebMvcTest` | Web-layer slice |
+| `@DataJpaTest` | JPA slice |
+| `@MockBean` / `@Mock` | Mock a bean / plain mock |
+| `@Testcontainers` / `@Container` | Real dependencies in Docker |
+
+## Caching & scheduling
+
+`@EnableCaching` `@Cacheable` `@CacheEvict` `@CachePut` · `@EnableScheduling`
+`@Scheduled` · `@Async` `@EnableAsync`.

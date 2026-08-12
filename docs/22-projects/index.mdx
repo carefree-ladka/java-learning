@@ -1,0 +1,67 @@
+---
+id: index
+title: Backend Projects
+sidebar_label: Overview
+sidebar_position: 0
+slug: /projects/
+description: Three progressively harder projects that take you from a CRUD API to a production-grade backend.
+---
+
+# Backend Projects
+
+Reading isn't enough — you become job-ready by building. These three projects
+escalate in difficulty and together exercise every topic in this curriculum.
+
+<ProgressTracker id="projects-overview" />
+
+## The progression
+
+```mermaid
+flowchart LR
+  p1[Project 1<br/>CRUD API] --> p2[Project 2<br/>E-commerce Backend]
+  p2 --> p3[Project 3<br/>Production Backend]
+```
+
+<div className="jbm-card-grid">
+  <Link className="jbm-card" to="/docs/projects/project-1-crud-api">
+    <div className="jbm-card__icon">🟢</div>
+    <h3>1. User Management API</h3>
+    <p>Spring Boot + PostgreSQL + JPA + REST. Master the layered architecture.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/projects/project-2-ecommerce">
+    <div className="jbm-card__icon">🟡</div>
+    <h3>2. E-commerce Backend</h3>
+    <p>Users, products, cart, orders, payments, JWT auth.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/projects/project-3-production">
+    <div className="jbm-card__icon">🔴</div>
+    <h3>3. Production Backend</h3>
+    <p>Redis, Kafka, Docker, testing, logging, metrics, rate limiting.</p>
+  </Link>
+</div>
+
+<Tip>
+Don't just copy the code — build each project yourself, commit it to GitHub, write a
+README with the architecture diagram, and be ready to explain every decision. A
+polished repo is the strongest interview asset you can bring.
+</Tip>
+
+## What each project proves
+
+| Project | You can... |
+| --- | --- |
+| 1. CRUD API | Structure a Spring Boot app, expose validated REST endpoints, persist with JPA |
+| 2. E-commerce | Model a domain, secure it with JWT, coordinate multi-entity transactions |
+| 3. Production | Cache, message, containerize, test, observe, and harden a real service |
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Layered architecture, DTOs, validation, error handling.
+- JWT authentication and role-based authorization.
+
+### 🟡 Good to Know
+- Caching, async messaging, and transactions across entities.
+
+### 🟢 Nice to Know
+- Observability, resilience, and containerized deployment.

@@ -1,0 +1,216 @@
+---
+id: level-3-advanced-core
+title: "Level 3 — Advanced Core (Q147–193)"
+sidebar_label: 🔴 Level 3 — Advanced (Core)
+sidebar_position: 3
+description: Advanced Java interview questions (4+ years) — JVM internals, advanced concurrency, Spring internals, and AOP, each with a concise answer and deep-dive links.
+---
+
+# Level 3 — Advanced Core (Q147–193)
+
+For **4+ years**. This tier is about internals, performance, and concurrency correctness —
+the questions that decide senior offers.
+
+<ProgressTracker id="iq-level-3-core" />
+
+## JVM internals & performance (147–156)
+
+**147. Explain JVM architecture and internals.**
+Class loader subsystem → runtime data areas (heap, stacks, metaspace, PC) → execution
+engine (interpreter, JIT, GC). See [JVM Internals](/docs/jvm/#architecture).
+
+**148. What are class loaders? Types and hierarchy.**
+They load classes lazily with delegation: Bootstrap → Platform → Application. A child
+delegates to its parent before loading itself.
+
+**149. Reference types: strong, weak, soft, phantom.**
+Strong (normal, never GC'd while reachable), Soft (GC'd under memory pressure — caches),
+Weak (GC'd at next cycle — `WeakHashMap`), Phantom (post-mortem cleanup via a
+`ReferenceQueue`).
+
+**150. What causes memory leaks? Detect and fix.**
+Retained references: unbounded caches, static collections, unremoved listeners, uncleared
+`ThreadLocal`s. Detect via heap dump + MAT. See [leaks](/docs/jvm/#memory-leaks--errors).
+
+**151. Garbage collection algorithms.**
+Serial, Parallel (throughput), G1 (default, region-based, pause targets), ZGC/Shenandoah
+(concurrent, sub-ms pauses). See [GC algorithms](/docs/jvm/#gc-algorithms).
+
+**152. JVM tuning for performance.**
+Set `-Xms=-Xmx`, choose the collector, set pause/heap goals (`MaxGCPauseMillis`,
+`MaxRAMPercentage`), and tune from real GC logs — don't guess.
+
+**153. What is the JIT compiler?**
+Just-In-Time compiler that compiles hot bytecode to native code at runtime (tiered C1/C2),
+so long-running code approaches native speed.
+
+**154. JVM memory areas in detail.**
+Heap (young/old, shared objects), per-thread stacks (frames), metaspace (class metadata,
+native), PC registers, and the string pool. See [memory areas](/docs/jvm/#memory-areas).
+
+**155. What is Metaspace? vs PermGen.**
+Class metadata storage in **native** memory (Java 8+), replacing the fixed-size heap
+PermGen; it grows dynamically (cap with `-XX:MaxMetaspaceSize`).
+
+**156. How to analyze heap and thread dumps?**
+Heap dump (`jmap`/`HeapDumpOnOutOfMemoryError`) in Eclipse MAT to find leak suspects;
+thread dump (`jstack`) to find deadlocks/blocked threads and hot stacks.
+
+## Advanced concurrency (157–174)
+
+**157. What is the Executor framework? Benefits.**
+Decouples task submission from thread management via pools — reuse, bounding, and
+backpressure. See [Executors](/docs/concurrency/executors-and-thread-pools/).
+
+**158. Explain Future and CompletableFuture.**
+`Future` is a handle you block on with `get()`; `CompletableFuture` composes async steps
+(chain/combine/handle errors) without blocking. See [CompletableFuture](/docs/concurrency/completable-future/).
+
+**159. What is a thread pool? How to configure it?**
+A reusable worker set fed by a queue; configure core/max size, keep-alive, a **bounded**
+queue, and a rejection policy. See [ThreadPoolExecutor](/docs/concurrency/executors-and-thread-pools/#threadpoolexecutor-internals).
+
+**160. ReentrantLock vs synchronized — which is better?**
+`ReentrantLock` adds tryLock/timeout/interruptible/fairness/multiple conditions;
+`synchronized` is simpler and auto-released. Use the lock when you need its features.
+
+**161. `volatile` vs `synchronized`.**
+`volatile` = visibility only (flags); `synchronized` = mutual exclusion + visibility
+(compound ops). See [thread safety](/docs/concurrency/thread-safety/).
+
+**162. Thread safety vs atomicity.**
+Atomicity = an operation is indivisible (no interleaving); thread safety = correct behavior
+under concurrent access (may need atomicity + visibility + ordering).
+
+**163. CountDownLatch vs CyclicBarrier.**
+Latch: threads wait for N events, one-shot (can't reset). Barrier: N threads wait for each
+other, reusable, can run a barrier action.
+
+**164. Busy wait vs blocking.**
+Busy wait spins burning CPU checking a condition; blocking parks the thread (no CPU) until
+signaled. Prefer blocking except for extremely short waits.
+
+**165. CompletableFuture internals.**
+It's a completion-stage state machine: callbacks register as dependents and fire when the
+stage completes, running on the completing thread or a supplied executor.
+
+**166. What is thread starvation? Prevent it.**
+A thread never gets CPU/locks because others monopolize them. Prevent with fair locks,
+bounded critical sections, priorities, and avoiding long holds.
+
+**167. Thread-safe singleton.**
+Best: an `enum` singleton, or a static holder class (lazy + safe via class-init), or
+double-checked locking with a `volatile` instance.
+
+**168. Producer-Consumer pattern.**
+Producers put into a `BlockingQueue`, consumers take from it; the queue handles the
+blocking/backpressure. See [wait/notify](/docs/concurrency/thread-fundamentals/#wait--notify-coordination).
+
+**169. What is ForkJoinPool? When to use it?**
+A work-stealing pool for divide-and-conquer CPU-bound tasks (`RecursiveTask`). Backs
+parallel streams. See [ForkJoinPool](/docs/concurrency/executors-and-thread-pools/#forkjoinpool).
+
+**170. Parallel streams internals.**
+They split the source (`Spliterator`), process chunks on the common ForkJoinPool, and
+combine results — only worthwhile for large, CPU-bound, stateless work.
+
+**171. What are Atomic classes? Examples.**
+Lock-free CAS-based types: `AtomicInteger`, `AtomicLong`, `AtomicReference`, `LongAdder`
+(better under high contention).
+
+**172. Semaphore vs Mutex.**
+A mutex allows one holder (exclusive); a semaphore allows up to N permits (limits
+concurrent access to a resource pool).
+
+**173. ReadWriteLock — when to use?**
+When reads vastly outnumber writes: many concurrent readers OR one exclusive writer,
+improving throughput over a plain lock.
+
+**174. Handle thread interruption properly.**
+Check `isInterrupted()`, and on catching `InterruptedException` restore the flag
+(`Thread.currentThread().interrupt()`) or propagate — never swallow it. See
+[interrupts](/docs/concurrency/thread-fundamentals/#interrupting-threads).
+
+## Advanced Spring Boot (175–186)
+
+**175. Spring bean lifecycle in detail.**
+Instantiate → populate dependencies → aware callbacks → `BeanPostProcessor` before-init →
+`@PostConstruct`/`afterPropertiesSet` → in use → `@PreDestroy`/`destroy`. See
+[lifecycle](/docs/spring-core/#bean-lifecycle).
+
+**176. Proxies in Spring — JDK dynamic vs CGLIB.**
+JDK proxies require an interface (proxy interface methods); CGLIB subclasses the class
+(any non-final method). Boot defaults to CGLIB. See [AOP & Proxies](/docs/spring-core/aop-and-proxies/#jdk-dynamic-proxy-vs-cglib).
+
+**177. `@Autowired` vs `@Inject` vs `@Resource`.**
+`@Autowired` (Spring) by type; `@Inject` (JSR-330) by type; `@Resource` (JSR-250) by name
+then type.
+
+**178. Inject a prototype bean into a singleton.**
+The singleton captures one prototype instance by default. For a fresh one each time use
+`ObjectProvider`/`@Lookup`/a scoped proxy.
+
+**179. Explain all bean scopes.**
+`singleton` (default, one per context), `prototype` (new each request), and web scopes
+`request`/`session`/`application`. See [scopes](/docs/spring-core/#bean-scopes).
+
+**180. Create custom auto-configuration.**
+An `@AutoConfiguration` class with `@ConditionalOn...` and `@ConfigurationProperties`,
+registered in `AutoConfiguration.imports`. See [custom auto-config](/docs/spring-boot/auto-configuration/#writing-your-own-auto-configuration).
+
+**181. What is Spring Boot Actuator? Common endpoints.**
+Production-ready ops endpoints: `/actuator/health`, `/info`, `/metrics`, `/prometheus`,
+`/conditions`, `/env`, `/loggers`. See [Production](/docs/production/#health-checks).
+
+**182. Implement custom health checks.**
+Implement `HealthIndicator` and return `Health.up()/down()` based on a dependency check;
+it appears under `/actuator/health`.
+
+**183. Conditional annotations.**
+`@ConditionalOnClass`, `@ConditionalOnMissingBean`, `@ConditionalOnProperty`,
+`@ConditionalOnBean` — the basis of auto-config back-off. See [conditional beans](/docs/spring-boot/auto-configuration/#conditional-beans).
+
+**184. Custom metrics and monitoring.**
+Use Micrometer: inject `MeterRegistry` and register `Counter`/`Timer`/`Gauge`; scrape via
+`/actuator/prometheus`. See [metrics](/docs/production/#metrics).
+
+**185. Request, session, application scopes.**
+`request` = one bean per HTTP request; `session` = one per HTTP session; `application` =
+one per `ServletContext` (like a wider singleton).
+
+**186. Prototype vs request scope.**
+Prototype = new instance every injection/lookup (any app); request = new instance per HTTP
+request (web only, tied to request lifecycle).
+
+## Advanced AOP (187–193)
+
+**187. What is AOP? Core concepts.**
+Modularizing cross-cutting concerns (tx, logging, security) via aspects applied at join
+points, implemented with proxies. See [AOP & Proxies](/docs/spring-core/aop-and-proxies/).
+
+**188. Advice types.**
+`@Before`, `@After` (finally), `@AfterReturning`, `@AfterThrowing`, and `@Around` (wraps
+the call, controls `proceed()`).
+
+**189. What is a pointcut?**
+An expression selecting which join points to advise, e.g.
+`execution(* com.shop.service..*(..))`.
+
+**190. What is a join point?**
+A point in execution where advice can apply — in Spring AOP, a method execution.
+
+**191. Custom annotations with AOP.**
+Define an annotation, write an aspect with a pointcut `@annotation(YourAnnotation)`, and
+apply advice — e.g. `@Audited`, `@RateLimited`.
+
+**192. Real-world AOP use cases.**
+Transactions, caching, security checks, method timing/metrics, audit logging, and retry —
+all without touching business code.
+
+**193. Performance implications of AOP.**
+Each advised call goes through a proxy (small overhead). Keep pointcuts narrow; avoid
+advising hot, tiny methods; `@Around` adds the most cost.
+
+---
+
+Next: [Level 3 — Advanced Systems (Q194–292)](/docs/interview-preparation/level-3-advanced-systems/)

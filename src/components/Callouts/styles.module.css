@@ -1,0 +1,104 @@
+.callout {
+  border-radius: 10px;
+  padding: 1rem 1.15rem;
+  margin: 1.25rem 0;
+  border-left: 5px solid var(--cal-accent);
+  background: var(--cal-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.calloutHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  color: var(--cal-accent);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+}
+
+.calloutIcon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.calloutTitle {
+  line-height: 1.2;
+}
+
+.calloutBody {
+  color: var(--ifm-font-color-base);
+  font-size: 0.97rem;
+}
+
+.calloutBody > :last-child {
+  margin-bottom: 0;
+}
+
+.calloutBody :global(p) {
+  margin-bottom: 0.5rem;
+}
+
+/* Important — red/rose */
+.important {
+  --cal-accent: #e11d48;
+  --cal-bg: rgba(225, 29, 72, 0.08);
+}
+
+/* Interview — indigo/violet */
+.interview {
+  --cal-accent: #7c3aed;
+  --cal-bg: rgba(124, 58, 237, 0.08);
+}
+
+/* Warning — amber */
+.warning {
+  --cal-accent: #d97706;
+  --cal-bg: rgba(217, 119, 6, 0.1);
+}
+
+/* Tip — green */
+.tip {
+  --cal-accent: #059669;
+  --cal-bg: rgba(5, 150, 105, 0.09);
+}
+
+/* Backend — blue */
+.backend {
+  --cal-accent: #2563eb;
+  --cal-bg: rgba(37, 99, 235, 0.08);
+}
+
+/* Note — slate */
+.note {
+  --cal-accent: #475569;
+  --cal-bg: rgba(71, 85, 105, 0.08);
+}
+
+/* Dark mode: brighten accents and soften backgrounds */
+[data-theme='dark'] .important {
+  --cal-accent: #fb7185;
+  --cal-bg: rgba(225, 29, 72, 0.14);
+}
+[data-theme='dark'] .interview {
+  --cal-accent: #a78bfa;
+  --cal-bg: rgba(124, 58, 237, 0.16);
+}
+[data-theme='dark'] .warning {
+  --cal-accent: #fbbf24;
+  --cal-bg: rgba(217, 119, 6, 0.16);
+}
+[data-theme='dark'] .tip {
+  --cal-accent: #34d399;
+  --cal-bg: rgba(5, 150, 105, 0.15);
+}
+[data-theme='dark'] .backend {
+  --cal-accent: #60a5fa;
+  --cal-bg: rgba(37, 99, 235, 0.16);
+}
+[data-theme='dark'] .note {
+  --cal-accent: #cbd5e1;
+  --cal-bg: rgba(148, 163, 184, 0.14);
+}

@@ -1,0 +1,223 @@
+---
+id: pagination-filtering-versioning
+title: Pagination, Filtering & Versioning
+sidebar_label: Pagination, Filtering & Versioning
+sidebar_position: 2
+description: Offset vs keyset pagination, sorting and filtering pushed to the database, API versioning strategies, and documenting with OpenAPI.
+---
+
+# Pagination, Filtering & Versioning
+
+Real collections are large and evolve over time. This page covers returning big result
+sets efficiently, letting clients sort/filter, and evolving the API without breaking
+existing consumers.
+
+<ProgressTracker id="rest-pagination" />
+
+## Table of Contents
+
+- [Why paginate](#why-paginate)
+- [Offset pagination](#offset-pagination)
+- [Keyset (cursor) pagination](#keyset-cursor-pagination)
+- [Sorting](#sorting)
+- [Filtering](#filtering)
+- [API versioning](#api-versioning)
+- [Documenting with OpenAPI](#documenting-with-openapi)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Why paginate
+
+<Warning>
+Never return an unbounded collection (`findAll()` → JSON). A table that grows to millions
+of rows will exhaust memory, time out, and can take the service down. **Always** cap page
+size (with a sane default and maximum).
+</Warning>
+
+## Offset pagination
+
+The familiar `page`/`size` model. Spring Data's `Pageable` handles it end to end.
+
+```java
+@GetMapping("/api/orders")
+public Page<OrderResponse> list(
+        @RequestParam(defaultValue = "0")  int page,
+        @RequestParam(defaultValue = "20") int size,
+        @RequestParam(defaultValue = "createdAt,desc") String sort) {
+
+    int capped = Math.min(size, 100);                        // enforce a max page size
+    Pageable pageable = PageRequest.of(page, capped, parseSort(sort));
+    return orderService.list(pageable);                      // repository returns Page<>
+}
+```
+
+`Page<T>` includes the content plus `totalElements`, `totalPages`, and `number` —
+convenient, but the count query and large `OFFSET` get slow at scale.
+
+<Warning>
+`OFFSET` pagination degrades on deep pages: `LIMIT 20 OFFSET 1000000` still scans and
+discards a million rows. It can also **skip or duplicate** rows if data changes between
+page requests. Fine for small/admin datasets; avoid for large, live feeds.
+</Warning>
+
+## Keyset (cursor) pagination
+
+Page by a stable sort key instead of an offset — O(log n) via an index, and stable under
+concurrent inserts. Ideal for infinite scroll and large feeds.
+
+```java
+// "Give me the next 20 orders after the last id I saw"
+@GetMapping("/api/orders")
+public List<OrderResponse> feed(
+        @RequestParam(required = false) Long afterId,
+        @RequestParam(defaultValue = "20") int size) {
+    long cursor = afterId == null ? Long.MAX_VALUE : afterId;
+    return orderService.pageAfter(cursor, Math.min(size, 100));
+}
+```
+
+```java
+// Repository: WHERE id < :cursor ORDER BY id DESC LIMIT :size  — uses the PK index
+@Query("SELECT o FROM Order o WHERE o.id < :cursor ORDER BY o.id DESC")
+List<Order> findPage(@Param("cursor") long cursor, Pageable limit);
+```
+
+| | Offset | Keyset (cursor) |
+| --- | --- | --- |
+| Deep-page speed | Slow (scans + discards) | Fast (index seek) |
+| Stable under inserts | ❌ (shift/dupe) | ✅ |
+| Jump to page N | ✅ | ❌ (sequential only) |
+| Total count | Easy | Usually omitted |
+
+## Sorting
+
+Translate a `sort=field,dir` param into a `Sort` and push it to the database.
+
+```java
+Sort parseSort(String sort) {
+    String[] parts = sort.split(",");
+    Sort.Direction dir = parts.length > 1 && parts[1].equalsIgnoreCase("asc")
+        ? Sort.Direction.ASC : Sort.Direction.DESC;
+    return Sort.by(dir, whitelist(parts[0]));   // whitelist to prevent injection
+}
+```
+
+<Important>
+**Whitelist** sortable/filterable field names against an allowed set. Passing a raw
+client string into a query (or building JPQL from it) risks injection and lets clients
+sort by unindexed columns, causing slow full sorts. Sort/filter in the **database**, not
+in memory.
+</Important>
+
+## Filtering
+
+For a few optional filters, use query params + derived queries or `Specification`.
+
+```java
+@GetMapping("/api/orders")
+public Page<OrderResponse> search(
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) Long customerId,
+        Pageable pageable) {
+    return orderService.search(status, customerId, pageable);
+}
+```
+
+```java
+// Dynamic filters with JPA Specifications (only apply non-null criteria)
+Specification<Order> spec = Specification.where(null);
+if (status != null)     spec = spec.and((r, q, cb) -> cb.equal(r.get("status"), status));
+if (customerId != null) spec = spec.and((r, q, cb) -> cb.equal(r.get("customerId"), customerId));
+return orderRepository.findAll(spec, pageable);
+```
+
+## API versioning
+
+Version when you make a **breaking** change (removing/renaming a field, changing types).
+Add fields non-breakingly — clients should ignore unknown properties.
+
+```text
+URI path:     GET /api/v1/orders          (most common, explicit, cache-friendly)
+Header:       Accept: application/vnd.shop.v2+json
+Query param:  GET /api/orders?version=2
+```
+
+```java
+@RestController
+@RequestMapping("/api/v1/orders")   // version in the path
+class OrderV1Controller { }
+
+@RestController
+@RequestMapping("/api/v2/orders")
+class OrderV2Controller { }
+```
+
+<Tip>
+Prefer **URI path versioning** (`/api/v1`) — it's explicit, easy to route/cache, and
+obvious in logs. Keep old versions running during a deprecation window, announce
+sunset dates, and never break `v1` while clients still use it.
+</Tip>
+
+## Documenting with OpenAPI
+
+`springdoc-openapi` generates interactive docs from your controllers and DTOs.
+
+```xml
+<dependency>
+  <groupId>org.springdoc</groupId>
+  <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+  <version>2.6.0</version>
+</dependency>
+```
+
+```java
+@Operation(summary = "List orders", description = "Paginated, sortable order list")
+@ApiResponse(responseCode = "200", description = "Page of orders")
+@GetMapping("/api/orders")
+public Page<OrderResponse> list(Pageable pageable) { ... }
+```
+
+Swagger UI then lives at `/swagger-ui.html` and the spec at `/v3/api-docs` — an
+always-accurate, testable contract.
+
+## Common mistakes
+
+<Warning>
+- Returning unbounded lists; no max page size.
+- Deep `OFFSET` paging on large tables (slow, unstable).
+- Passing raw sort/filter strings into queries (injection, unindexed sorts).
+- Breaking `v1` instead of adding `v2`.
+- Sorting/filtering in memory instead of the database.
+</Warning>
+
+## Interview questions
+
+**Q: Offset vs keyset pagination?**
+Offset (`page`/`size`) is simple and supports jumping to page N but slows on deep pages
+and can skip/dupe under inserts. Keyset (`WHERE id < cursor`) is index-fast and stable
+but only sequential.
+
+**Q: How do you paginate/sort safely at scale?**
+Cap page size, push sorting/filtering to the DB, whitelist field names, and prefer keyset
+pagination for large live datasets.
+
+**Q: When and how do you version an API?**
+On breaking changes; prefer URI path versioning, keep old versions during deprecation.
+
+**Q: How do you document a REST API?**
+springdoc-openapi generates OpenAPI/Swagger UI from controllers and DTOs.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Always paginate; cap page size; sort/filter in the DB.
+- Offset vs keyset trade-offs.
+- URI path versioning on breaking changes.
+
+### 🟡 Good to Know
+- Spring Data `Pageable`/`Page`/`Sort`; `Specification` for dynamic filters.
+- Whitelisting sort/filter fields.
+
+### 🟢 Nice to Know
+- OpenAPI/springdoc; RFC 5988 `Link` headers for cursors.

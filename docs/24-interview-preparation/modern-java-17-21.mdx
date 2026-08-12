@@ -1,0 +1,79 @@
+---
+id: modern-java-17-21
+title: "Modern Java 17–21 (Q293–306)"
+sidebar_label: ✨ Modern Java (17–21)
+sidebar_position: 5
+description: Interview questions on modern Java (17–21) — virtual threads, records, pattern matching, sealed types, sequenced collections, text blocks, and switch expressions.
+---
+
+# Modern Java 17–21 (Q293–306)
+
+Recent LTS releases (17 and 21) changed how backend Java is written. Interviewers
+increasingly expect familiarity with virtual threads, records, and pattern matching.
+
+<ProgressTracker id="iq-modern-java" />
+
+## Latest language features (293–306)
+
+**293. What are virtual threads (Project Loom)?**
+Lightweight JVM-managed threads (Java 21) scheduled onto a few OS carrier threads. A
+blocked virtual thread parks and frees its carrier, so you can run millions. See
+[Virtual Threads](/docs/concurrency/virtual-threads/).
+
+**294. Performance benefits of virtual threads.**
+They make the simple blocking thread-per-request model scale to very high concurrency for
+I/O-bound work — reclaiming readability from async/reactive code without OS-thread limits.
+
+**295. When NOT to use virtual threads?**
+CPU-bound work (they add no compute — use a sized platform pool), and don't pool them or
+wrap blocking I/O in `synchronized` (pinning). See [pinning](/docs/concurrency/virtual-threads/#pinning-the-main-pitfall).
+
+**296. How to create virtual threads?**
+`Thread.startVirtualThread(task)` or
+`Executors.newVirtualThreadPerTaskExecutor()`; in Spring Boot 3.2+ set
+`spring.threads.virtual.enabled=true`.
+
+**297. What are record patterns?**
+Deconstruct a record directly in `instanceof`/`switch`:
+`if (obj instanceof Point(int x, int y))` binds `x` and `y` — great with sealed types.
+
+**298. Pattern matching for switch (Java 21).**
+`switch` on types with binding and guards:
+`case Circle c when c.radius() > 10 -> ...`; exhaustive over sealed hierarchies. See
+[pattern matching](/docs/java-8-plus/#pattern-matching--switch-expressions).
+
+**299. `getFirst()` and `getLast()` in collections.**
+Java 21 `SequencedCollection` methods for first/last access and `reversed()` — a uniform
+API across `List`, `Deque`, and `LinkedHashSet`.
+
+**300. String templates (preview).**
+Embedded expressions in strings with a processor (`STR."Hello \{name}"`) for safe
+interpolation. Preview — API may change.
+
+**301. Sequenced collections.**
+Java 21 interfaces (`SequencedCollection`/`SequencedMap`) giving a defined encounter order
+with `getFirst`/`getLast`/`reversed`/`putFirst`.
+
+**302. What are records? Use cases.**
+Immutable data carriers that auto-generate constructor, accessors, `equals`/`hashCode`/
+`toString`. Ideal for DTOs and value objects. See [Records](/docs/java-8-plus/#records).
+
+**303. Text blocks — advantages.**
+Multi-line string literals (`"""..."""`) — readable JSON/SQL/HTML without escaping and
+concatenation.
+
+**304. Switch expression improvements.**
+Arrow `switch` returns a value, has no fall-through, supports multiple labels, and can be
+exhaustive — safer than the old statement form. See [switch expressions](/docs/java-fundamentals/operators-and-control-flow/#switch-expressions).
+
+**305. Sealed interfaces.**
+`sealed interface ... permits ...` restricts implementers to a known set, enabling
+exhaustive pattern-matching switches. See [sealed classes](/docs/java-8-plus/#sealed-classes).
+
+**306. Pattern matching for `instanceof`.**
+`if (o instanceof String s)` tests and binds in one step, removing the explicit cast. See
+[pattern matching](/docs/java-8-plus/#pattern-matching--switch-expressions).
+
+---
+
+Next: [Scenario-Based Questions (Q307–319)](/docs/interview-preparation/scenario-based/)

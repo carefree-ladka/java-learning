@@ -1,0 +1,318 @@
+---
+id: arrays
+title: "1. Arrays"
+sidebar_label: 1. Arrays
+sidebar_position: 2
+description: The foundational array patterns — two pointers, sliding window, prefix sum, difference array, Kadane, and binary search — with brute-force vs optimal Java code.
+---
+
+# 1. Arrays
+
+Arrays underpin most of DSA. Master these six patterns and you can solve a huge slice
+of interview problems. For each, we show the **brute force** first, then the
+**optimal** — because interviewers want that progression.
+
+<ProgressTracker id="dsa-arrays" />
+
+## Table of Contents
+
+- [Basics](#basics)
+- [Pattern 1 — Two Pointers](#pattern-1--two-pointers)
+- [Pattern 2 — Sliding Window](#pattern-2--sliding-window)
+- [Pattern 3 — Prefix Sum](#pattern-3--prefix-sum)
+- [Pattern 4 — Difference Array](#pattern-4--difference-array)
+- [Pattern 5 — Kadane's Algorithm](#pattern-5--kadanes-algorithm)
+- [Pattern 6 — Binary Search on Array](#pattern-6--binary-search-on-array)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## Basics
+
+Traversal, in-place edits, reversal, and rotation show up everywhere.
+
+```java
+// Reverse in place — two pointers
+void reverse(int[] a) {
+    int l = 0, r = a.length - 1;
+    while (l < r) { int t = a[l]; a[l++] = a[r]; a[r--] = t; }
+}
+
+// Rotate right by k (reversal trick) — O(n) time, O(1) space
+void rotate(int[] a, int k) {
+    k %= a.length;
+    reverse(a, 0, a.length - 1);
+    reverse(a, 0, k - 1);
+    reverse(a, k, a.length - 1);
+}
+```
+
+## Pattern 1 — Two Pointers
+
+Two indices move toward each other (or in the same direction), turning an O(n²) pair
+scan into O(n). Works on **sorted** arrays or when you can partition in place.
+
+```text
+left →              ← right
+[ 2, 7, 11, 15, 26, 40 ]
+```
+
+### Two Sum II (sorted input) — [LeetCode 167](https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/)
+
+```java
+// BRUTE FORCE — O(n^2): check every pair
+int[] twoSumBrute(int[] a, int target) {
+    for (int i = 0; i < a.length; i++)
+        for (int j = i + 1; j < a.length; j++)
+            if (a[i] + a[j] == target) return new int[]{i + 1, j + 1};
+    return new int[0];
+}
+
+// OPTIMAL — O(n) time, O(1) space: move pointers based on the sum
+int[] twoSum(int[] a, int target) {
+    int l = 0, r = a.length - 1;
+    while (l < r) {
+        int sum = a[l] + a[r];
+        if (sum == target) return new int[]{l + 1, r + 1};
+        if (sum < target) l++;      // need a bigger sum
+        else r--;                   // need a smaller sum
+    }
+    return new int[0];
+}
+```
+
+### Container With Most Water — [LeetCode 11](https://leetcode.com/problems/container-with-most-water/)
+
+```java
+// OPTIMAL — O(n): shrink from the side with the shorter wall
+int maxArea(int[] h) {
+    int l = 0, r = h.length - 1, best = 0;
+    while (l < r) {
+        best = Math.max(best, Math.min(h[l], h[r]) * (r - l));
+        if (h[l] < h[r]) l++; else r--;
+    }
+    return best;
+}
+```
+
+<Important>
+Two-pointer insight for Container With Most Water: the area is bounded by the **shorter**
+wall, so moving the taller pointer can never help — always move the shorter one. That
+greedy choice is why O(n) beats the O(n²) brute force.
+</Important>
+
+## Pattern 2 — Sliding Window
+
+Maintain a contiguous window `[left, right]` and expand/shrink it, reusing work instead
+of recomputing each subarray. **Fixed** window (size k) or **variable** window (grow
+until a condition breaks, then shrink).
+
+### Max sum subarray of size K (fixed) — classic
+
+```java
+// OPTIMAL — O(n): slide, add the new element, drop the old one
+int maxSumK(int[] a, int k) {
+    int sum = 0;
+    for (int i = 0; i < k; i++) sum += a[i];
+    int best = sum;
+    for (int i = k; i < a.length; i++) {
+        sum += a[i] - a[i - k];       // slide the window
+        best = Math.max(best, sum);
+    }
+    return best;
+}
+```
+
+### Longest substring without repeating characters — [LeetCode 3](https://leetcode.com/problems/longest-substring-without-repeating-characters/)
+
+```java
+// OPTIMAL — O(n): variable window; shrink from left when a repeat appears
+int lengthOfLongestSubstring(String s) {
+    Map<Character, Integer> last = new HashMap<>();
+    int left = 0, best = 0;
+    for (int right = 0; right < s.length(); right++) {
+        char c = s.charAt(right);
+        if (last.containsKey(c) && last.get(c) >= left) {
+            left = last.get(c) + 1;   // jump left past the previous occurrence
+        }
+        last.put(c, right);
+        best = Math.max(best, right - left + 1);
+    }
+    return best;
+}
+```
+
+### Minimum size subarray sum — [LeetCode 209](https://leetcode.com/problems/minimum-size-subarray-sum/)
+
+```java
+// OPTIMAL — O(n): grow to meet target, then shrink to minimize
+int minSubArrayLen(int target, int[] a) {
+    int left = 0, sum = 0, best = Integer.MAX_VALUE;
+    for (int right = 0; right < a.length; right++) {
+        sum += a[right];
+        while (sum >= target) {           // shrink while still valid
+            best = Math.min(best, right - left + 1);
+            sum -= a[left++];
+        }
+    }
+    return best == Integer.MAX_VALUE ? 0 : best;
+}
+```
+
+<Tip>
+Sliding-window template: expand `right` each step; while the window is invalid (or you
+want to minimize), advance `left`. Track the answer inside the loop. Recognize it when
+a problem says "contiguous subarray/substring" plus a constraint.
+</Tip>
+
+## Pattern 3 — Prefix Sum
+
+Precompute cumulative sums so any range sum is O(1). Combine with a hash map to count
+subarrays with a target sum.
+
+### Subarray Sum Equals K — [LeetCode 560](https://leetcode.com/problems/subarray-sum-equals-k/)
+
+```java
+// BRUTE FORCE — O(n^2): sum every subarray
+int subarraySumBrute(int[] a, int k) {
+    int count = 0;
+    for (int i = 0; i < a.length; i++) {
+        int sum = 0;
+        for (int j = i; j < a.length; j++) { sum += a[j]; if (sum == k) count++; }
+    }
+    return count;
+}
+
+// OPTIMAL — O(n): prefix sum + hash map of counts
+int subarraySum(int[] a, int k) {
+    Map<Integer, Integer> seen = new HashMap<>();
+    seen.put(0, 1);                    // empty prefix
+    int prefix = 0, count = 0;
+    for (int x : a) {
+        prefix += x;
+        count += seen.getOrDefault(prefix - k, 0);  // prior prefix that makes sum k
+        seen.merge(prefix, 1, Integer::sum);
+    }
+    return count;
+}
+```
+
+<Important>
+The prefix-sum + hash-map trick — "how many earlier prefixes equal `prefix - k`?" — is
+one of the highest-leverage patterns. It converts many O(n²) subarray-counting problems
+to O(n). Seed the map with `{0: 1}` to count subarrays starting at index 0.
+</Important>
+
+### Product Except Self — [LeetCode 238](https://leetcode.com/problems/product-of-array-except-self/)
+
+```java
+// OPTIMAL — O(n), no division: prefix products then suffix products
+int[] productExceptSelf(int[] a) {
+    int n = a.length;
+    int[] res = new int[n];
+    res[0] = 1;
+    for (int i = 1; i < n; i++) res[i] = res[i - 1] * a[i - 1];  // prefix
+    int suffix = 1;
+    for (int i = n - 1; i >= 0; i--) { res[i] *= suffix; suffix *= a[i]; }  // suffix
+    return res;
+}
+```
+
+## Pattern 4 — Difference Array
+
+For many **range updates** then a final read: add `val` at `l`, subtract at `r+1`, then
+prefix-sum to materialize. Turns each range update from O(n) to O(1).
+
+```java
+// Apply updates [l, r, val] then return the final array
+int[] applyRangeUpdates(int n, int[][] updates) {
+    int[] diff = new int[n + 1];
+    for (int[] u : updates) {
+        diff[u[0]] += u[2];
+        diff[u[1] + 1] -= u[2];       // cancel after the range ends
+    }
+    int[] res = new int[n];
+    int run = 0;
+    for (int i = 0; i < n; i++) { run += diff[i]; res[i] = run; }  // prefix sum
+    return res;
+}
+```
+
+## Pattern 5 — Kadane's Algorithm
+
+Maximum-sum contiguous subarray in O(n): at each element, either extend the running sum
+or restart from here.
+
+### Maximum Subarray — [LeetCode 53](https://leetcode.com/problems/maximum-subarray/)
+
+```java
+// OPTIMAL — O(n): running max ending here
+int maxSubArray(int[] a) {
+    int cur = a[0], best = a[0];
+    for (int i = 1; i < a.length; i++) {
+        cur = Math.max(a[i], cur + a[i]);   // extend or restart
+        best = Math.max(best, cur);
+    }
+    return best;
+}
+```
+
+<Interview>
+Kadane's key line is `cur = max(a[i], cur + a[i])`: if the running sum has gone
+negative, it can only hurt, so start fresh at `a[i]`. For the **circular** variant,
+the answer is `max(normalKadane, totalSum - minSubarray)` (handle the all-negative case
+separately).
+</Interview>
+
+## Pattern 6 — Binary Search on Array
+
+On a **sorted** array, halve the search space each step — O(log n). See the dedicated
+[Binary Search](/docs/dsa/binary-search/) page for search-on-the-answer.
+
+```java
+// Standard binary search — O(log n)
+int search(int[] a, int target) {
+    int lo = 0, hi = a.length - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;      // avoids overflow
+        if (a[mid] == target) return mid;
+        if (a[mid] < target) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return -1;
+}
+```
+
+<Warning>
+Always compute `mid = lo + (hi - lo) / 2`, not `(lo + hi) / 2`, which can overflow for
+large indices.
+</Warning>
+
+## Problem checklist
+
+Curated from [Blind 75](https://neetcode.io/practice?tab=blind75) /
+[NeetCode 150](https://neetcode.io/practice?tab=neetcode150):
+
+- [Two Sum](https://leetcode.com/problems/two-sum/) · hashing
+- [Best Time to Buy/Sell Stock](https://leetcode.com/problems/best-time-to-buy-and-sell-stock/) · one pass
+- [Maximum Subarray](https://leetcode.com/problems/maximum-subarray/) · Kadane
+- [Product Except Self](https://leetcode.com/problems/product-of-array-except-self/) · prefix/suffix
+- [3Sum](https://leetcode.com/problems/3sum/) · sort + two pointers
+- [Container With Most Water](https://leetcode.com/problems/container-with-most-water/) · two pointers
+- [Trapping Rain Water](https://leetcode.com/problems/trapping-rain-water/) · two pointers
+- [Move Zeroes](https://leetcode.com/problems/move-zeroes/) · two pointers
+- [Subarray Sum Equals K](https://leetcode.com/problems/subarray-sum-equals-k/) · prefix + map
+- [Longest Consecutive Sequence](https://leetcode.com/problems/longest-consecutive-sequence/) · hashing
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Two pointers and sliding window (the two workhorses).
+- Prefix sum + hash map for subarray counting.
+- Kadane's for max subarray; safe `mid` in binary search.
+
+### 🟡 Good to Know
+- Difference array for batched range updates.
+- Rotation via triple reversal (O(1) space).
+
+### 🟢 Nice to Know
+- Circular Kadane; Dutch national flag partition.

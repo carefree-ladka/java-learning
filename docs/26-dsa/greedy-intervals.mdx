@@ -1,0 +1,185 @@
+---
+id: greedy-intervals
+title: "14. Greedy & Intervals"
+sidebar_label: 14. Greedy & Intervals
+sidebar_position: 15
+description: Greedy algorithms and the interval pattern — sort then make the locally optimal choice; merge intervals, jump game, activity selection.
+---
+
+# 14. Greedy & Intervals
+
+A **greedy** algorithm makes the locally optimal choice at each step, trusting (or
+proving) it leads to a global optimum. **Interval** problems are a greedy sub-family:
+sort by start or end, then sweep.
+
+<ProgressTracker id="dsa-greedy-intervals" />
+
+## Table of Contents
+
+- [When greedy works](#when-greedy-works)
+- [Greedy on arrays: Jump Game](#greedy-on-arrays-jump-game)
+- [Gas Station](#gas-station)
+- [The interval pattern](#the-interval-pattern)
+- [Merge Intervals](#merge-intervals)
+- [Non-overlapping / Meeting Rooms](#non-overlapping--meeting-rooms)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## When greedy works
+
+<Important>
+Greedy is correct only when the problem has the **greedy-choice property** (a local
+optimum leads to a global one) and **optimal substructure**. When it doesn't, you
+usually need [dynamic programming](/docs/dsa/dynamic-programming/). In interviews,
+briefly justify *why* the greedy choice is safe — don't just assert it.
+</Important>
+
+Common greedy shapes: **sort + sweep**, **interval scheduling**, **two pointers +
+greedy**, and **priority-queue + greedy**.
+
+## Greedy on arrays: Jump Game
+
+### Jump Game — [LeetCode 55](https://leetcode.com/problems/jump-game/)
+
+```java
+// OPTIMAL — O(n): track the farthest index reachable so far
+boolean canJump(int[] nums) {
+    int farthest = 0;
+    for (int i = 0; i < nums.length; i++) {
+        if (i > farthest) return false;           // stuck: can't reach i
+        farthest = Math.max(farthest, i + nums[i]);
+    }
+    return true;
+}
+```
+
+### Jump Game II — [LeetCode 45](https://leetcode.com/problems/jump-game-ii/)
+
+```java
+// OPTIMAL — O(n): greedy BFS-by-level; extend the current jump's reach
+int jump(int[] nums) {
+    int jumps = 0, curEnd = 0, farthest = 0;
+    for (int i = 0; i < nums.length - 1; i++) {
+        farthest = Math.max(farthest, i + nums[i]);
+        if (i == curEnd) { jumps++; curEnd = farthest; }  // must jump now
+    }
+    return jumps;
+}
+```
+
+## Gas Station
+
+### Gas Station — [LeetCode 134](https://leetcode.com/problems/gas-station/)
+
+```java
+// OPTIMAL — O(n): if total gas >= total cost, the answer is unique;
+// restart the candidate start whenever the running tank goes negative
+int canCompleteCircuit(int[] gas, int[] cost) {
+    int total = 0, tank = 0, start = 0;
+    for (int i = 0; i < gas.length; i++) {
+        int diff = gas[i] - cost[i];
+        total += diff;
+        tank += diff;
+        if (tank < 0) { start = i + 1; tank = 0; }   // can't reach i+1 from current start
+    }
+    return total >= 0 ? start : -1;
+}
+```
+
+## The interval pattern
+
+```text
+Sort by start (or end)
+        ↓
+Compare current with the previous / last chosen
+        ↓
+Merge, skip, or count
+```
+
+## Merge Intervals
+
+### Merge Intervals — [LeetCode 56](https://leetcode.com/problems/merge-intervals/)
+
+```java
+// OPTIMAL — O(n log n): sort by start, extend or push
+int[][] merge(int[][] intervals) {
+    Arrays.sort(intervals, (a, b) -> a[0] - b[0]);
+    List<int[]> res = new ArrayList<>();
+    int[] cur = intervals[0];
+    for (int i = 1; i < intervals.length; i++) {
+        if (intervals[i][0] <= cur[1]) {                 // overlap -> extend end
+            cur[1] = Math.max(cur[1], intervals[i][1]);
+        } else {
+            res.add(cur);                                // no overlap -> commit
+            cur = intervals[i];
+        }
+    }
+    res.add(cur);
+    return res.toArray(new int[0][]);
+}
+```
+
+## Non-overlapping / Meeting Rooms
+
+### Non-overlapping Intervals — [LeetCode 435](https://leetcode.com/problems/non-overlapping-intervals/)
+
+```java
+// Greedy: sort by END, keep the interval that finishes earliest
+int eraseOverlapIntervals(int[][] intervals) {
+    Arrays.sort(intervals, (a, b) -> a[1] - b[1]);
+    int prevEnd = Integer.MIN_VALUE, removed = 0;
+    for (int[] it : intervals) {
+        if (it[0] >= prevEnd) prevEnd = it[1];   // keep it (no overlap)
+        else removed++;                          // overlaps -> remove it
+    }
+    return removed;
+}
+```
+
+### Meeting Rooms II — [LeetCode 253](https://leetcode.com/problems/meeting-rooms-ii/)
+
+```java
+// Min rooms = max concurrent meetings; min-heap of end times
+int minMeetingRooms(int[][] intervals) {
+    Arrays.sort(intervals, (a, b) -> a[0] - b[0]);        // by start
+    PriorityQueue<Integer> ends = new PriorityQueue<>();   // earliest end on top
+    for (int[] m : intervals) {
+        if (!ends.isEmpty() && ends.peek() <= m[0]) ends.poll();  // reuse a freed room
+        ends.offer(m[1]);
+    }
+    return ends.size();
+}
+```
+
+<Interview>
+Interval sort key matters: **sort by end** for "max non-overlapping / min removals"
+(activity selection — finishing early leaves the most room), and **sort by start** for
+merging or counting concurrency. Meeting Rooms II is really "max overlap" — a min-heap
+of end times gives it in O(n log n).
+</Interview>
+
+## Problem checklist
+
+- [Jump Game](https://leetcode.com/problems/jump-game/) / [II](https://leetcode.com/problems/jump-game-ii/)
+- [Gas Station](https://leetcode.com/problems/gas-station/)
+- [Merge Intervals](https://leetcode.com/problems/merge-intervals/)
+- [Insert Interval](https://leetcode.com/problems/insert-interval/)
+- [Non-overlapping Intervals](https://leetcode.com/problems/non-overlapping-intervals/)
+- [Meeting Rooms II](https://leetcode.com/problems/meeting-rooms-ii/)
+- [Minimum Number of Arrows to Burst Balloons](https://leetcode.com/problems/minimum-number-of-arrows-to-burst-balloons/)
+- [Partition Labels](https://leetcode.com/problems/partition-labels/)
+- [Assign Cookies](https://leetcode.com/problems/assign-cookies/)
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Justify the greedy choice; else use DP.
+- Interval pattern: sort then sweep; sort-by-end for max non-overlapping.
+- Merge Intervals and Meeting Rooms II (heap of end times).
+
+### 🟡 Good to Know
+- Jump Game (farthest reach) and Jump Game II (level jumps).
+- Gas Station's single-pass reset trick.
+
+### 🟢 Nice to Know
+- Exchange-argument proofs for greedy correctness.

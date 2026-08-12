@@ -1,0 +1,263 @@
+---
+id: index
+title: SQL & Databases
+sidebar_label: SQL & Databases
+sidebar_position: 0
+slug: /database/
+description: Relational modeling, keys, normalization, indexes, joins, transactions, ACID, isolation levels, window functions, and query optimization.
+---
+
+# SQL & Databases
+
+Most backend performance problems are database problems. ORMs hide SQL until they
+can't — so you must read execution plans, design indexes, and reason about
+isolation. Examples use PostgreSQL/MySQL syntax.
+
+<ProgressTracker id="database-overview" />
+
+## Table of Contents
+
+- [Relational model & keys](#relational-model--keys)
+- [Constraints](#constraints)
+- [Normalization](#normalization)
+- [Indexes](#indexes)
+- [Joins](#joins)
+- [Aggregation: GROUP BY & HAVING](#aggregation-group-by--having)
+- [Window functions](#window-functions)
+- [Transactions & ACID](#transactions--acid)
+- [Isolation levels](#isolation-levels)
+- [Query optimization & EXPLAIN](#query-optimization--explain)
+- [Deep-dive topics](#deep-dive-topics)
+- [Most Asked Interview Questions](#most-asked-interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Relational model & keys
+
+Data lives in **tables** (relations) of **rows** and **columns**. A **primary key**
+uniquely identifies a row; a **foreign key** references another table's primary key.
+
+```sql
+CREATE TABLE customers (
+    id          BIGSERIAL PRIMARY KEY,
+    email       VARCHAR(255) NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE TABLE orders (
+    id           BIGSERIAL PRIMARY KEY,
+    customer_id  BIGINT NOT NULL REFERENCES customers(id),
+    total        NUMERIC(12,2) NOT NULL CHECK (total >= 0),
+    status       VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+## Constraints
+
+| Constraint | Guarantees |
+| --- | --- |
+| `PRIMARY KEY` | Unique + not null identity |
+| `FOREIGN KEY` | Referential integrity |
+| `UNIQUE` | No duplicate values |
+| `NOT NULL` | Value required |
+| `CHECK` | Custom rule (`total >= 0`) |
+| `DEFAULT` | Value when none supplied |
+
+<Backend>
+Enforce invariants in the database, not just in Java. A `UNIQUE` constraint on
+`email` stops duplicate signups even under a race between two concurrent requests
+that both passed the application-level "does this email exist?" check.
+</Backend>
+
+## Normalization
+
+Normalization removes redundancy so each fact is stored once.
+
+- **1NF** — atomic columns, no repeating groups.
+- **2NF** — no partial dependency on part of a composite key.
+- **3NF** — no transitive dependency (non-key depends only on the key).
+
+**Denormalization** deliberately duplicates data (e.g. storing `order_total`) to
+speed reads, trading storage and write-complexity for query performance.
+
+<Interview>
+Rule of thumb: normalize for correctness (OLTP write systems), denormalize
+selectively for read-heavy paths and reporting. Premature denormalization creates
+update anomalies; premature over-normalization creates join-heavy slow queries.
+</Interview>
+
+## Indexes
+
+An index is a sorted data structure (usually a B-tree) that turns a full-table scan
+(`O(n)`) into a lookup (`O(log n)`).
+
+```sql
+CREATE INDEX idx_orders_customer ON orders(customer_id);
+-- Composite index: order matters (leftmost-prefix rule)
+CREATE INDEX idx_orders_cust_status ON orders(customer_id, status);
+-- Unique index doubles as a constraint
+CREATE UNIQUE INDEX uq_customers_email ON customers(email);
+```
+
+<Important>
+**Leftmost-prefix rule:** a composite index on `(a, b)` supports queries filtering
+on `a` or `a AND b`, but **not** `b` alone. Order columns by selectivity and query
+patterns.
+</Important>
+
+<Warning>
+Indexes speed reads but slow writes (every insert/update maintains them) and consume
+storage. Don't index everything. Watch for unused and redundant indexes.
+</Warning>
+
+## Joins
+
+```sql
+-- INNER: only matching rows
+SELECT o.id, c.email
+FROM orders o
+JOIN customers c ON c.id = o.customer_id;
+
+-- LEFT: all orders, customer columns null if unmatched
+SELECT o.id, c.email
+FROM orders o
+LEFT JOIN customers c ON c.id = o.customer_id;
+```
+
+| Join | Returns |
+| --- | --- |
+| `INNER JOIN` | Rows matching in both tables |
+| `LEFT JOIN` | All left rows + matches (nulls otherwise) |
+| `RIGHT JOIN` | All right rows + matches |
+| `FULL OUTER JOIN` | All rows from both sides |
+| `CROSS JOIN` | Cartesian product |
+
+## Aggregation: GROUP BY & HAVING
+
+`WHERE` filters rows **before** grouping; `HAVING` filters groups **after**.
+
+```sql
+SELECT customer_id, COUNT(*) AS order_count, SUM(total) AS spent
+FROM orders
+WHERE status = 'PAID'          -- filter rows first
+GROUP BY customer_id
+HAVING SUM(total) > 1000       -- filter aggregated groups
+ORDER BY spent DESC;
+```
+
+## Window functions
+
+Window functions compute across a set of rows **without collapsing** them — great
+for rankings, running totals, and "top N per group".
+
+```sql
+SELECT
+  id, customer_id, total,
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY total DESC) AS rn,
+  SUM(total)   OVER (PARTITION BY customer_id) AS customer_lifetime
+FROM orders;
+-- Filter rn = 1 (in an outer query/CTE) to get each customer's largest order
+```
+
+## Transactions & ACID
+
+A transaction is an all-or-nothing unit of work.
+
+- **Atomicity** — all statements commit or none do.
+- **Consistency** — constraints hold before and after.
+- **Isolation** — concurrent transactions don't corrupt each other.
+- **Durability** — committed data survives a crash.
+
+```sql
+BEGIN;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+COMMIT;   -- both succeed or ROLLBACK undoes everything
+```
+
+## Isolation levels
+
+Higher isolation prevents more anomalies but reduces concurrency.
+
+| Level | Dirty read | Non-repeatable read | Phantom read |
+| --- | :---: | :---: | :---: |
+| READ UNCOMMITTED | ✅ possible | ✅ | ✅ |
+| READ COMMITTED | ❌ | ✅ | ✅ |
+| REPEATABLE READ | ❌ | ❌ | ✅ (mostly) |
+| SERIALIZABLE | ❌ | ❌ | ❌ |
+
+- **Dirty read** — reading another transaction's uncommitted change.
+- **Non-repeatable read** — a row changes between two reads in the same transaction.
+- **Phantom read** — new rows appear matching a range query on re-read.
+
+<Backend>
+PostgreSQL defaults to READ COMMITTED; MySQL/InnoDB defaults to REPEATABLE READ.
+Know your database's default — it affects whether you see other transactions' commits
+mid-transaction and how you handle concurrent updates (see optimistic locking in
+[Transactions](/docs/spring-data-jpa/)).
+</Backend>
+
+## Query optimization & EXPLAIN
+
+`EXPLAIN ANALYZE` shows the planner's chosen plan and real timings. Look for
+sequential scans on large tables, bad row estimates, and missing index usage.
+
+```sql
+EXPLAIN ANALYZE
+SELECT * FROM orders WHERE customer_id = 42 AND status = 'PAID';
+-- Seq Scan on orders  -> add index on (customer_id, status)
+-- Index Scan using idx_orders_cust_status -> good
+```
+
+## Deep-dive topics
+
+<div className="jbm-card-grid">
+  <Link className="jbm-card" to="/docs/database/indexing">
+    <div className="jbm-card__icon">🗂️</div>
+    <h3>Indexing Deep Dive</h3>
+    <p>B-trees, composite & covering indexes, leftmost-prefix, and reading EXPLAIN.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/database/transactions-isolation">
+    <div className="jbm-card__icon">🔒</div>
+    <h3>Transactions & Isolation</h3>
+    <p>ACID, isolation levels & anomalies, optimistic vs pessimistic locking, deadlocks.</p>
+  </Link>
+</div>
+
+## Most Asked Interview Questions
+
+### Beginner
+- Primary key vs foreign key?
+- `WHERE` vs `HAVING`?
+- INNER vs LEFT JOIN?
+
+### Intermediate
+- What is an index and what are its trade-offs?
+- Explain the leftmost-prefix rule for composite indexes.
+- What are the ACID properties?
+
+### Advanced
+- Explain isolation levels and the anomalies they prevent.
+- How do you find and fix a slow query?
+- Normalization vs denormalization trade-offs?
+
+### Coding
+- Write a query for the top order per customer (window function).
+- Find duplicate emails with `GROUP BY ... HAVING COUNT(*) > 1`.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Keys, constraints, and 3NF.
+- Indexes, B-trees, and the leftmost-prefix rule.
+- Joins, GROUP BY/HAVING.
+- ACID and isolation levels + anomalies.
+
+### 🟡 Good to Know
+- Window functions and CTEs.
+- Reading `EXPLAIN ANALYZE`.
+- DB default isolation levels.
+
+### 🟢 Nice to Know
+- Covering indexes and index-only scans.
+- MVCC (how Postgres implements isolation).

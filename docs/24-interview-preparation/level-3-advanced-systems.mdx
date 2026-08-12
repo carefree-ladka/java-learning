@@ -1,0 +1,422 @@
+---
+id: level-3-advanced-systems
+title: "Level 3 — Advanced Systems (Q194–292)"
+sidebar_label: 🏗️ Level 3 — Advanced (Systems)
+sidebar_position: 4
+description: Advanced systems interview questions (4+ years) — Spring Security, microservices, Kafka, database & caching, design patterns, and cloud/DevOps.
+---
+
+# Level 3 — Advanced Systems (Q194–292)
+
+For **4+ years**. Security, distributed systems, data, patterns, and infrastructure —
+where senior/staff interviews spend most of their time.
+
+<ProgressTracker id="iq-level-3-systems" />
+
+## Security (194–213)
+
+**194. How does Spring Security work internally?**
+A chain of servlet filters authenticates and authorizes each request before it reaches the
+controller. See [Spring Security](/docs/security/).
+
+**195. Authentication vs authorization.**
+AuthN = who you are (verify identity); AuthZ = what you may do (check permissions/roles).
+
+**196. Explain the filter chain.**
+Ordered filters (CORS → auth → authorization) process the request; each can short-circuit
+with 401/403. See [filter chain](/docs/security/#the-security-filter-chain).
+
+**197. How does JWT authentication work?**
+Server verifies credentials, returns a signed token; the client sends it as a Bearer
+header; a filter validates signature/expiry and sets the security context — stateless. See
+[JWT](/docs/security/jwt-authentication/).
+
+**198. How to implement JWT in Spring Boot?**
+Issue a signed token on login; add a `OncePerRequestFilter` that parses/validates the
+Bearer token and populates `SecurityContext`; set the chain to STATELESS.
+
+**199. Access token vs refresh token.**
+Short-lived access token sent on every call; long-lived, revocable refresh token used only
+to mint new access tokens. See [tokens](/docs/security/jwt-authentication/#access-vs-refresh-tokens).
+
+**200. What is OAuth2? Explain the flow.**
+Delegated authorization: an auth server issues access tokens so a client calls an API on a
+user's behalf (authorization code → token → resource). See [OAuth2](/docs/system-design/concepts/security/#oauth2--openid-connect).
+
+**201. Role-based access control (RBAC).**
+Assign permissions to roles, roles to users; enforce with `hasRole('ADMIN')` /
+`@PreAuthorize`.
+
+**202. What is CORS? How to configure it?**
+Browser cross-origin policy; the server opts in with allowed origins/methods/headers
+(`CorsConfigurationSource`) — never `*` with credentials.
+
+**203. How to prevent CSRF attacks?**
+CSRF tokens for cookie/session auth; for stateless token APIs (Bearer header) CSRF
+protection is typically disabled since there's no ambient cookie.
+
+**204. What is BCrypt? Why for passwords?**
+A salted, adaptive (slow) hashing function that resists brute force; `BCryptPasswordEncoder`
+is Spring's default. Never store plaintext.
+
+**205. Method-level security.**
+`@EnableMethodSecurity` + `@PreAuthorize`/`@PostAuthorize`/`@Secured` to guard service
+methods, independent of URL rules.
+
+**206. `@PreAuthorize` vs `@PostAuthorize`.**
+`@PreAuthorize` checks before the method runs (args/roles); `@PostAuthorize` checks after,
+using the return value (e.g. `returnObject.owner == authentication.name`).
+
+**207. Session management in Spring Security.**
+Control session creation policy (STATELESS for token APIs), concurrency limits, fixation
+protection, and timeout.
+
+**208. Custom authentication provider.**
+Implement `AuthenticationProvider.authenticate()` (or a custom filter) to plug in a
+non-standard credential source; register it with the `AuthenticationManager`.
+
+**209. What is SecurityContext?**
+A thread-local holding the current `Authentication` (principal + authorities) for the
+request, populated by the auth filter.
+
+**210. Handle authentication failures.**
+Provide an `AuthenticationEntryPoint` (401) and `AccessDeniedHandler` (403) returning a
+consistent JSON error.
+
+**211. Token vs session authentication.**
+Sessions store state server-side (easy revoke, needs sticky/shared store); tokens are
+stateless (scale freely, hard to revoke before expiry).
+
+**212. How to implement SSO?**
+Central identity provider issues tokens (OAuth2/OIDC/SAML); apps trust it, so one login
+grants access across all — see [scenario 313](/docs/interview-preparation/scenario-based/).
+
+**213. Security best practices for REST APIs.**
+HTTPS everywhere, short-lived tokens, BCrypt passwords, validate/sanitize input,
+parameterized queries, least-privilege, rate limiting, and never leak stack traces.
+
+## Microservices (214–230)
+
+**214. Monolith vs microservices — pros/cons.**
+Monolith: simple, one deploy, hard to scale teams/parts. Microservices: independent
+scaling/deploys, but network, ops, and consistency complexity. Start monolith. See
+[fundamentals](/docs/system-design/concepts/fundamentals/#monolith-vs-microservices).
+
+**215. How do microservices communicate?**
+Synchronous (REST/gRPC) or asynchronous (Kafka/RabbitMQ events). Protect sync calls with
+timeouts/retries/circuit breakers.
+
+**216. RestTemplate vs WebClient vs Feign.**
+`RestTemplate` (blocking, legacy), `WebClient` (reactive/non-blocking, modern),
+`Feign` (declarative interface-based HTTP client).
+
+**217. What is an API Gateway? Why needed?**
+A single entry point centralizing routing, auth, rate limiting, and aggregation so clients
+don't call services directly. See [design patterns](/docs/system-design/concepts/design-patterns/#edge-patterns-api-gateway-reverse-proxy-lb).
+
+**218. What is service discovery?**
+A registry (Eureka/Consul) where services register and look each other up by name, so
+instances can scale and move without hard-coded addresses.
+
+**219. Resilience patterns in microservices.**
+Timeout, retry+backoff, circuit breaker, bulkhead, rate limiter, fallback/graceful
+degradation. See [Reliability](/docs/system-design/concepts/reliability/).
+
+**220. What is a circuit breaker?**
+Stops calling a failing dependency (opens) and fails fast, testing recovery (half-open)
+before closing — Resilience4j. See [circuit breaker](/docs/system-design/concepts/reliability/#circuit-breaker).
+
+**221. How to implement rate limiting?**
+Token bucket / sliding window with a shared Redis counter, returning 429; or at the
+gateway. See [rate limiter](/docs/system-design/rate-limiter/).
+
+**222. Handle slow/unresponsive services.**
+Timeouts + circuit breaker + fallback + bulkhead isolation, plus async where possible so a
+slow dependency can't exhaust threads.
+
+**223. Version APIs in microservices.**
+URI path versioning (`/v1`), keep old versions during deprecation, and evolve schemas
+backward-compatibly.
+
+**224. Distributed logging and tracing.**
+Centralized logs (ELK/Loki) + a correlation/trace ID propagated across services + spans
+(OpenTelemetry/Jaeger). See [Observability](/docs/system-design/concepts/observability/).
+
+**225. Synchronous vs asynchronous communication.**
+Sync (request/response, coupled, simple) vs async (events, decoupled, resilient, eventual
+consistency). Use async for out-of-band work.
+
+**226. What is the CAP theorem?**
+During a network partition you choose Consistency or Availability, not both. See
+[CAP](/docs/system-design/concepts/distributed-systems/#cap-theorem).
+
+**227. Explain the Saga pattern.**
+A distributed transaction as local steps with compensating actions on failure —
+choreography or orchestration. See [Distributed Transactions](/docs/system-design/concepts/distributed-transactions/).
+
+**228. Maintain data consistency across services.**
+Sagas + idempotency + the outbox pattern (atomic DB write + event) — accept eventual
+consistency where safe.
+
+**229. Microservices vs SOA.**
+Both are service-oriented; microservices are finer-grained, independently deployable, own
+their data, and favor lightweight protocols vs SOA's heavier ESB.
+
+**230. Producer-Consumer with messaging.**
+Producer publishes to a topic/queue; consumer groups process independently and idempotently
+with retries/DLQ. See [Kafka](/docs/kafka-messaging/).
+
+## Apache Kafka (231–242)
+
+**231. What is Kafka? Core components.**
+A distributed, durable, partitioned commit log. Components: brokers, producers, consumers,
+topics, partitions, offsets. See [Kafka](/docs/kafka-messaging/).
+
+**232. What are partitions? How do they work?**
+A topic is split into ordered partitions for parallelism; a record's key decides its
+partition (`hash(key) % n`), preserving per-key order.
+
+**233. Topics, producers, consumers.**
+Topic = named log; producer appends records; consumer reads by tracking its offset.
+
+**234. What are consumer groups?**
+Consumers in a group share a topic's partitions (one partition → one consumer in the
+group) for scale; different groups each get the full stream (fan-out).
+
+**235. Retry mechanism and DLQ.**
+Retry with backoff on failure; after N attempts route the record to a dead-letter topic so
+one poison message doesn't block the partition. See [retries & DLQ](/docs/kafka-messaging/#retries--dead-letter-topics).
+
+**236. How does Kafka maintain ordering?**
+Order is guaranteed **within a partition**; use the same key to keep related records
+ordered. No cross-partition ordering.
+
+**237. What is Kafka Connect? Use cases.**
+A framework of source/sink connectors to stream data in/out of Kafka without code (DB CDC,
+S3, Elasticsearch sinks).
+
+**238. Achieve exactly-once semantics.**
+Idempotent producer + transactions within Kafka; for external sinks, make consumers
+idempotent (dedupe/upsert). See [delivery semantics](/docs/kafka-messaging/#delivery-semantics).
+
+**239. What are Kafka Streams?**
+A client library for stateful stream processing (map/filter/join/aggregate/windowing) on
+Kafka topics, without a separate cluster.
+
+**240. Monitor Kafka performance.**
+Watch consumer lag, throughput, ISR/under-replicated partitions, request latency, and disk
+usage.
+
+**241. Kafka vs RabbitMQ.**
+Kafka = high-throughput, replayable log (event streaming); RabbitMQ = flexible-routing task
+queue, deletes on ack. See [comparison](/docs/system-design/concepts/messaging/#kafka-vs-rabbitmq).
+
+**242. Real-time processing patterns with Kafka.**
+Event sourcing, CQRS read-model updates, stream enrichment/joins, windowed aggregations,
+and the outbox pattern.
+
+## Database & caching (243–262)
+
+**243. SQL vs NoSQL — when to use each?**
+SQL for transactions/relationships/complex queries; NoSQL for huge scale, flexible schema,
+or known access patterns. See [storage](/docs/system-design/concepts/storage/).
+
+**244. Database indexing? Types.**
+Structures (usually B-tree) for fast lookups; types: single, composite, unique, covering,
+partial, functional. See [Indexing](/docs/database/indexing/).
+
+**245. How to optimize queries?**
+Read `EXPLAIN`, add the right indexes, avoid `SELECT *`/N+1, limit result sets, and
+denormalize hot read paths.
+
+**246. Connection pooling? HikariCP.**
+Reuse warm DB connections instead of opening per request; HikariCP is Boot's default —
+size it modestly (total ≤ DB limit). See [JDBC](/docs/jdbc/#connection-pooling--hikaricp).
+
+**247. Transactions and ACID.**
+Atomicity, Consistency, Isolation, Durability — all-or-nothing units of work. See
+[Transactions](/docs/database/transactions-isolation/).
+
+**248. Isolation levels? Examples.**
+READ UNCOMMITTED → READ COMMITTED → REPEATABLE READ → SERIALIZABLE, preventing dirty →
+non-repeatable → phantom reads. See [isolation](/docs/database/transactions-isolation/#isolation-levels).
+
+**249. Database migrations (Flyway/Liquibase).**
+Version-controlled, ordered schema changes applied automatically on startup; never
+auto-generate prod schema with Hibernate. See [migrations](/docs/production/#database-migrations).
+
+**250. What is Redis? Use cases.**
+In-memory key-value store for caching, sessions, rate limiting, leaderboards, and
+distributed locks. See [Redis](/docs/redis-caching/).
+
+**251. Implement caching in Spring Boot.**
+`@EnableCaching` + `@Cacheable`/`@CacheEvict`/`@CachePut`, backed by Redis. See
+[Spring caching](/docs/redis-caching/#spring-caching).
+
+**252. Cache-aside vs write-through.**
+Cache-aside populates on read miss (common); write-through writes cache+DB together
+(consistent reads). See [strategies](/docs/redis-caching/#caching-strategies).
+
+**253. Cache eviction policies.**
+LRU (least recently used), LFU (least frequently used), FIFO, TTL-based — bound memory when
+full.
+
+**254. Handle cache invalidation.**
+Evict/update on writes and set TTLs as a safety net; when unsure, evict and repopulate on
+next read. See [invalidation](/docs/redis-caching/#ttl--invalidation).
+
+**255. N+1 query problem? Solutions.**
+1 query loads N parents, then N lazy queries; fix with `JOIN FETCH`, `@EntityGraph`, or
+batch fetching. See [N+1](/docs/spring-data-jpa/n-plus-one/).
+
+**256. Optimistic vs pessimistic locking.**
+Optimistic (`@Version`, detect at commit, low contention) vs pessimistic
+(`SELECT ... FOR UPDATE`, lock hot rows). See [locking](/docs/database/transactions-isolation/#optimistic-vs-pessimistic-locking).
+
+**257. What is database sharding?**
+Splitting data across multiple databases by a shard key to scale writes/storage; use
+consistent hashing. See [sharding](/docs/system-design/concepts/database-scaling/#sharding).
+
+**258. Read replicas vs write master.**
+Primary handles writes; replicas serve reads (scaling reads) with async replication lag to
+account for. See [replicas](/docs/system-design/concepts/database-scaling/#read-replicas).
+
+**259. Implement pagination efficiently.**
+Keyset (cursor) pagination over an indexed key beats deep `OFFSET`. See
+[pagination](/docs/rest-api/pagination-filtering-versioning/#keyset-cursor-pagination).
+
+**260. What is a prepared statement? Benefits.**
+A parameterized, precompiled SQL statement — prevents SQL injection and lets the DB cache
+the plan. See [PreparedStatement](/docs/jdbc/#preparedstatement--sql-injection).
+
+**261. Connection leak — causes and prevention.**
+Not returning connections (no try-with-resources); the pool exhausts and requests hang.
+Always close in `finally`/try-with-resources; set leak-detection thresholds.
+
+**262. Monitor database performance.**
+Track slow-query logs, `EXPLAIN` plans, index usage, connection-pool saturation, lock/
+deadlock counts, and replication lag.
+
+## Design patterns (263–282)
+
+**263. Thread-safe Singleton.**
+Enum singleton, static holder class, or double-checked locking with `volatile`. See
+[Patterns](/docs/patterns/#creational-factory-builder-singleton).
+
+**264. Factory pattern — when?**
+Centralize object creation and choose the concrete type at runtime (e.g. a
+`PaymentProcessor` per method).
+
+**265. Builder — advantages over constructors.**
+Readable step-by-step construction of complex/immutable objects; avoids telescoping
+constructors and many overloads.
+
+**266. Strategy — real-world example.**
+Swap an algorithm behind an interface (pricing/shipping/discount strategies), injected by
+Spring. See [Strategy](/docs/patterns/#behavioral-strategy-observer-template-chain-command).
+
+**267. Observer — use cases.**
+Publish/subscribe reactions: Spring `ApplicationEvent`, UI listeners, Kafka consumers.
+
+**268. Dependency Injection pattern.**
+Supply collaborators from outside rather than constructing them — the core of Spring. See
+[DI](/docs/spring-core/dependency-injection/).
+
+**269. Adapter — example.**
+Wrap an incompatible third-party API behind your interface (e.g. a `PaymentGateway`
+adapter over a vendor SDK).
+
+**270. Decorator — Spring AOP usage.**
+Wrap an object to add behavior with the same interface; Spring AOP proxies are effectively
+decorators for cross-cutting concerns.
+
+**271. Proxy — implementation.**
+A stand-in controlling access to a target (lazy loading, security, tx) — Spring uses JDK/
+CGLIB proxies. See [proxies](/docs/spring-core/aop-and-proxies/).
+
+**272. Template Method.**
+A base class defines the algorithm skeleton; subclasses fill in steps (`JdbcTemplate`, an
+abstract processor).
+
+**273. Chain of Responsibility.**
+Pass a request through handlers until one handles it — the Spring Security filter chain.
+
+**274. Command pattern.**
+Encapsulate a request as an object (jobs on a queue, undoable actions).
+
+**275. State vs Strategy.**
+Both delegate to interchangeable objects; State changes behavior as internal state
+transitions, Strategy is chosen by the client for an algorithm.
+
+**276. Repository pattern in Spring Data.**
+Abstracts persistence behind an interface (`JpaRepository`); Spring generates the
+implementation.
+
+**277. DTO pattern — why?**
+Decouple the API contract from entities, avoid over-fetching/lazy-loading issues, and
+prevent leaking internal schema.
+
+**278. MVC pattern in Spring.**
+Model (data), View (rendering), Controller (request handling) — `DispatcherServlet` routes
+to controllers.
+
+**279. Front Controller pattern.**
+A single entry point handling all requests and dispatching — Spring's `DispatcherServlet`.
+
+**280. Service Locator pattern.**
+A registry to look up services on demand; largely superseded by DI (which is preferred and
+more testable).
+
+**281. SOLID principles.**
+Single-responsibility, Open/closed, Liskov substitution, Interface segregation, Dependency
+inversion — the foundation of maintainable OO design.
+
+**282. When NOT to use design patterns?**
+When they add complexity without benefit — don't force a pattern on a simple problem
+(YAGNI). Prefer the simplest design that works.
+
+## Cloud & DevOps (283–292)
+
+**283. What is Docker? Basic concepts.**
+Containerization: package an app + runtime into a portable image run as isolated
+containers. See [Docker](/docs/docker/).
+
+**284. Docker vs virtual machines.**
+Containers share the host kernel (lightweight, fast, MBs); VMs run a full guest OS
+(heavier, stronger isolation, GBs).
+
+**285. What is Kubernetes? Core concepts.**
+Container orchestration: schedules/scales/self-heals containers via Pods, Deployments,
+Services, Ingress. See [Deployment](/docs/system-design/concepts/deployment/#kubernetes-basics).
+
+**286. Containerize a Spring Boot app.**
+Multi-stage Dockerfile (JDK build → slim JRE runtime), non-root user,
+`MaxRAMPercentage`. See [Dockerfile](/docs/docker/#a-multi-stage-dockerfile).
+
+**287. ConfigMaps and Secrets in Kubernetes.**
+ConfigMaps hold non-sensitive config; Secrets hold sensitive values — both injected as env
+vars or mounted files.
+
+**288. What is CI/CD? Tools and pipeline.**
+Continuous Integration (build+test on push) and Continuous Delivery/Deployment (promote
+artifacts); tools: GitHub Actions, GitLab CI, Jenkins, Argo CD. See [CI/CD](/docs/system-design/concepts/deployment/#cicd).
+
+**289. Deploy Spring Boot to AWS.**
+Container on ECS/EKS or a JAR on Elastic Beanstalk/EC2; RDS for the database, secrets in
+Secrets Manager, behind an ALB.
+
+**290. What is AWS Lambda? Serverless.**
+Run functions on demand without managing servers; scales to zero, pay per invocation —
+great for event-driven/spiky workloads, watch cold starts.
+
+**291. Blue-green deployment.**
+Run two identical environments; switch traffic to the new one at once for instant rollback.
+See [deployment strategies](/docs/system-design/concepts/deployment/#deployment-strategies).
+
+**292. Monitoring and logging in production.**
+Metrics (Prometheus/Grafana), centralized logs (ELK), tracing (Jaeger/OTel), health checks,
+and alerting on the golden signals. See [Observability](/docs/system-design/concepts/observability/).
+
+---
+
+Next: [Modern Java (17–21) (Q293–306)](/docs/interview-preparation/modern-java-17-21/)

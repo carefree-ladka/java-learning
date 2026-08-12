@@ -1,0 +1,148 @@
+---
+id: math
+title: "17. Math & Number Theory"
+sidebar_label: 17. Math & Number Theory
+sidebar_position: 18
+description: GCD/LCM, primes and the Sieve of Eratosthenes, modular arithmetic, fast (binary) exponentiation, and combinatorics for interviews.
+---
+
+# 17. Math & Number Theory
+
+A small set of number-theory tools shows up repeatedly: GCD, prime sieves, modular
+arithmetic, and fast exponentiation. Knowing them turns "tricky math" problems into
+one-liners.
+
+<ProgressTracker id="dsa-math" />
+
+## Table of Contents
+
+- [GCD & LCM](#gcd--lcm)
+- [Primes & the Sieve](#primes--the-sieve)
+- [Modular arithmetic](#modular-arithmetic)
+- [Fast exponentiation](#fast-exponentiation)
+- [Combinatorics](#combinatorics)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## GCD & LCM
+
+The Euclidean algorithm computes the greatest common divisor in O(log min(a,b)).
+
+```java
+int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
+long lcm(int a, int b) { return (long) a / gcd(a, b) * b; }   // divide first: avoid overflow
+```
+
+<Tip>
+Compute LCM as `a / gcd(a,b) * b`, not `a * b / gcd`, to avoid overflowing before the
+division. GCD underlies fraction reduction, cycle problems, and `gcd`-of-array questions.
+</Tip>
+
+## Primes & the Sieve
+
+### Sieve of Eratosthenes — count primes below n in O(n log log n)
+
+```java
+// Count Primes — LeetCode 204
+int countPrimes(int n) {
+    if (n < 3) return 0;
+    boolean[] composite = new boolean[n];
+    int count = 0;
+    for (int i = 2; i < n; i++) {
+        if (composite[i]) continue;
+        count++;
+        for (long j = (long) i * i; j < n; j += i)   // mark multiples from i*i
+            composite[(int) j] = true;
+    }
+    return count;
+}
+```
+
+<Important>
+Start marking multiples at `i*i` (smaller multiples are already marked by smaller
+primes) and use `long` for `i*i` to avoid overflow. The sieve is the standard way to
+get all primes up to n; trial division per number is far slower.
+</Important>
+
+## Modular arithmetic
+
+Results are often required "modulo 1e9+7" to keep numbers in `long` range.
+
+```java
+static final int MOD = 1_000_000_007;
+long add(long a, long b) { return (a + b) % MOD; }
+long mul(long a, long b) { return (a % MOD) * (b % MOD) % MOD; }
+```
+
+Identities: `(a + b) % m = ((a%m) + (b%m)) % m`, and similarly for multiplication.
+Division needs the **modular inverse** (via Fermat's little theorem: `a^(m-2) % m` when
+`m` is prime).
+
+## Fast exponentiation
+
+Compute `base^exp` in O(log exp) by squaring — with or without a modulus.
+
+```java
+// Binary exponentiation, mod m
+long power(long base, long exp, long mod) {
+    long result = 1;
+    base %= mod;
+    while (exp > 0) {
+        if ((exp & 1) == 1) result = result * base % mod;  // include this bit
+        base = base * base % mod;                          // square
+        exp >>= 1;
+    }
+    return result;
+}
+```
+
+<Interview>
+"Compute x^n" (LeetCode 50, *Pow(x, n)*) expects **fast exponentiation** — O(log n), not
+the naive O(n) loop. The same halving idea, with a modulus, powers modular inverse and
+large combinatorics.
+</Interview>
+
+## Combinatorics
+
+- **Permutations:** `nPr = n! / (n-r)!`
+- **Combinations:** `nCr = n! / (r!(n-r)!)`
+- Precompute factorials (and inverse factorials mod p) for repeated `nCr` queries.
+- Pascal's triangle gives `nCr` via `C(n,r) = C(n-1,r-1) + C(n-1,r)`.
+
+```java
+// Pascal's Triangle row-by-row DP
+List<List<Integer>> generate(int numRows) {
+    List<List<Integer>> tri = new ArrayList<>();
+    for (int i = 0; i < numRows; i++) {
+        List<Integer> row = new ArrayList<>();
+        for (int j = 0; j <= i; j++)
+            row.add(j == 0 || j == i ? 1 : tri.get(i-1).get(j-1) + tri.get(i-1).get(j));
+        tri.add(row);
+    }
+    return tri;
+}
+```
+
+## Problem checklist
+
+- [Pow(x, n)](https://leetcode.com/problems/powx-n/) · fast exponentiation
+- [Count Primes](https://leetcode.com/problems/count-primes/) · sieve
+- [Greatest Common Divisor of Strings](https://leetcode.com/problems/greatest-common-divisor-of-strings/) · GCD
+- [Pascal's Triangle](https://leetcode.com/problems/pascals-triangle/) · combinatorics
+- [Happy Number](https://leetcode.com/problems/happy-number/) · digits + cycle detection
+- [Ugly Number II](https://leetcode.com/problems/ugly-number-ii/) · multi-pointer
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Euclidean GCD; LCM via `a/gcd*b`.
+- Sieve of Eratosthenes for primes.
+- Fast (binary) exponentiation in O(log n).
+
+### 🟡 Good to Know
+- Modular arithmetic identities; mod 1e9+7 convention.
+- `nCr`/`nPr` and Pascal's triangle.
+
+### 🟢 Nice to Know
+- Modular inverse via Fermat's little theorem.
+- Extended Euclidean algorithm.

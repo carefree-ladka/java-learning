@@ -1,0 +1,101 @@
+---
+id: sql
+title: "Cheat Sheet: SQL"
+sidebar_label: SQL
+sidebar_position: 2
+description: Quick reference for SQL query structure, joins, aggregation, window functions, and indexing.
+---
+
+# SQL Cheat Sheet
+
+<ProgressTracker id="cheat-sql" />
+
+## Query execution order
+
+```text
+FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT
+```
+
+`WHERE` filters rows; `HAVING` filters groups. You can't reference a `SELECT` alias
+in `WHERE` (it runs earlier).
+
+## Core query
+
+```sql
+SELECT c.email, COUNT(*) AS orders, SUM(o.total) AS spent
+FROM customers c
+JOIN orders o ON o.customer_id = c.id
+WHERE o.status = 'PAID'
+GROUP BY c.email
+HAVING SUM(o.total) > 1000
+ORDER BY spent DESC
+LIMIT 10;
+```
+
+## Joins
+
+| Join | Returns |
+| --- | --- |
+| `INNER JOIN` | Matches in both |
+| `LEFT JOIN` | All left + matches (null right) |
+| `RIGHT JOIN` | All right + matches |
+| `FULL OUTER JOIN` | All rows both sides |
+| `CROSS JOIN` | Cartesian product |
+
+## Aggregates
+
+`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`. Use `COUNT(*)` for rows, `COUNT(col)` skips
+nulls, `COUNT(DISTINCT col)` for unique.
+
+## Window functions
+
+```sql
+SELECT id, customer_id, total,
+  ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY total DESC) AS rn,
+  RANK()       OVER (ORDER BY total DESC) AS rnk,
+  SUM(total)   OVER (PARTITION BY customer_id) AS cust_total,
+  LAG(total)   OVER (ORDER BY created_at) AS prev_total
+FROM orders;
+```
+
+## CTE
+
+```sql
+WITH paid AS (
+  SELECT * FROM orders WHERE status = 'PAID'
+)
+SELECT customer_id, SUM(total) FROM paid GROUP BY customer_id;
+```
+
+## Indexing rules
+
+- Index columns used in `WHERE`, `JOIN`, `ORDER BY`.
+- Composite index `(a, b)` helps `a` and `a AND b`, not `b` alone (leftmost prefix).
+- Indexes speed reads, slow writes, cost storage — don't over-index.
+- `EXPLAIN ANALYZE` to verify index usage vs sequential scan.
+
+## Transactions
+
+```sql
+BEGIN;
+  UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+  UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+COMMIT;   -- or ROLLBACK
+```
+
+**Isolation:** READ UNCOMMITTED < READ COMMITTED < REPEATABLE READ < SERIALIZABLE.
+Anomalies prevented as you go up: dirty read → non-repeatable read → phantom read.
+
+## Handy patterns
+
+```sql
+-- Upsert (Postgres)
+INSERT INTO users(email) VALUES ('a@x.com')
+ON CONFLICT (email) DO UPDATE SET updated_at = now();
+
+-- Duplicates
+SELECT email, COUNT(*) FROM users GROUP BY email HAVING COUNT(*) > 1;
+
+-- Keyset pagination (faster than OFFSET)
+SELECT * FROM orders WHERE id > :lastId ORDER BY id LIMIT 20;
+```

@@ -1,0 +1,90 @@
+.tracker {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  padding: 1rem 1.15rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.headerTitle {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.headerPct {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--ifm-color-primary);
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-200);
+  overflow: hidden;
+  margin-bottom: 0.9rem;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ifm-color-primary), #22c55e);
+  transition: width 0.35s ease;
+}
+
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s ease;
+}
+
+.stage:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.stageOn {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.stageBox {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.stageIcon {
+  font-size: 0.9rem;
+}
+
+.stageLabel {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .stageLabel {
+    font-size: 0.8rem;
+  }
+}

@@ -1,0 +1,119 @@
+---
+id: comparable-comparator
+title: Comparable & Comparator
+sidebar_label: Comparable & Comparator
+sidebar_position: 3
+description: Natural ordering vs custom ordering, multi-key sorting, and how sorted collections use them.
+---
+
+# Comparable & Comparator
+
+<ProgressTracker id="comparable-comparator" />
+
+## Table of Contents
+
+- [The difference](#the-difference)
+- [Comparable: natural ordering](#comparable-natural-ordering)
+- [Comparator: custom ordering](#comparator-custom-ordering)
+- [Backend usage](#backend-usage)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## The difference
+
+| | `Comparable` | `Comparator` |
+| --- | --- | --- |
+| Method | `compareTo(other)` | `compare(a, b)` |
+| Where | Inside the class | Separate object/lambda |
+| Meaning | The one "natural" order | Any number of orders |
+| Package | `java.lang` | `java.util` |
+
+Return contract for both: negative if `a < b`, zero if equal, positive if `a > b`.
+
+## Comparable: natural ordering
+
+```java
+public record Employee(String name, int salary) implements Comparable<Employee> {
+    @Override
+    public int compareTo(Employee other) {
+        return Integer.compare(this.salary, other.salary);  // ascending by salary
+    }
+}
+
+List<Employee> list = new ArrayList<>(employees);
+Collections.sort(list);   // uses compareTo
+```
+
+## Comparator: custom ordering
+
+`Comparator` shines when you need several orderings or cannot modify the class.
+
+```java
+// Sort by salary desc, then name asc
+Comparator<Employee> byPay = Comparator
+        .comparingInt(Employee::salary).reversed()
+        .thenComparing(Employee::name);
+
+employees.sort(byPay);
+
+// Sort ad hoc
+employees.sort(Comparator.comparing(Employee::name));
+```
+
+<Warning>
+Never write `(a, b) -> a.salary() - b.salary()` for possibly-large ints — the
+subtraction can overflow and flip the sign. Use `Integer.compare(a, b)`.
+</Warning>
+
+## Backend usage
+
+<Backend>
+Sorted collections rely on ordering: `TreeMap`/`TreeSet` use `Comparable` (or a
+supplied `Comparator`) to place elements. In APIs, translate a `sort=field,dir`
+query parameter into a `Comparator` or, better, a Spring Data `Sort` pushed down to
+the database — sorting in SQL scales; sorting a huge list in memory does not.
+</Backend>
+
+```java
+// Spring Data: let the database sort and paginate
+Page<Employee> page = repository.findAll(
+    PageRequest.of(0, 20, Sort.by("salary").descending()));
+```
+
+## Common mistakes
+
+<Warning>
+- Inconsistency with `equals`: a `TreeSet` treats elements as equal when `compareTo`
+  returns 0, which can silently drop "duplicates".
+- Integer subtraction overflow in comparators.
+- Sorting large collections in memory instead of in the database.
+</Warning>
+
+## Interview questions
+
+**Q: `Comparable` vs `Comparator`?**
+`Comparable` defines a class's single natural order via `compareTo`. `Comparator` is
+an external, reusable strategy (`compare`) allowing many orderings without changing
+the class.
+
+**Q: Why prefer `Integer.compare` over subtraction?**
+Subtraction can overflow for large/negative values and return the wrong sign;
+`Integer.compare` is safe.
+
+**Q: How does `TreeMap` order entries?**
+By the key's `Comparable` order, or a `Comparator` passed to its constructor.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- `Comparable` = natural order in the class; `Comparator` = external/multiple orders.
+- Use `Comparator.comparing(...).thenComparing(...)` for multi-key sorts.
+- Prefer database sorting for large datasets.
+
+### 🟡 Good to Know
+- `Comparator` consistency with `equals` for sorted sets/maps.
+- `reversed()`, `nullsFirst`, `nullsLast`.
+
+### 🟢 Nice to Know
+- Stability of `List.sort` (Timsort is stable).

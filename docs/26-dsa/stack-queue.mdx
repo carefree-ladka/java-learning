@@ -1,0 +1,173 @@
+---
+id: stack-queue
+title: "5. Stack & Queue"
+sidebar_label: 5. Stack & Queue
+sidebar_position: 6
+description: Stack, queue, deque, and the monotonic stack/queue patterns — expression parsing, next greater element, and sliding window maximum.
+---
+
+# 5. Stack & Queue
+
+Stacks (LIFO) and queues (FIFO) power parsing, traversal, and the powerful **monotonic
+stack/queue** pattern. In Java, use `ArrayDeque` for both — not the legacy `Stack`.
+
+<ProgressTracker id="dsa-stack-queue" />
+
+## Table of Contents
+
+- [Java setup](#java-setup)
+- [Expression problems](#expression-problems)
+- [Pattern: monotonic stack](#pattern-monotonic-stack)
+- [Pattern: monotonic queue](#pattern-monotonic-queue)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## Java setup
+
+```java
+Deque<Integer> stack = new ArrayDeque<>();   // push/pop/peek  (LIFO)
+Deque<Integer> queue = new ArrayDeque<>();   // offer/poll     (FIFO)
+```
+
+<Warning>
+Use `ArrayDeque`, not `java.util.Stack` (synchronized, extends `Vector`, slow) and not
+`LinkedList` for stacks. `ArrayDeque` is the idiomatic, fast choice for both stack and
+queue behavior.
+</Warning>
+
+## Expression problems
+
+### Valid Parentheses — [LeetCode 20](https://leetcode.com/problems/valid-parentheses/)
+
+```java
+// OPTIMAL — O(n): push openers, match on closers
+boolean isValid(String s) {
+    Deque<Character> stack = new ArrayDeque<>();
+    Map<Character, Character> pairs = Map.of(')', '(', ']', '[', '}', '{');
+    for (char c : s.toCharArray()) {
+        if (pairs.containsValue(c)) stack.push(c);           // opener
+        else if (stack.isEmpty() || stack.pop() != pairs.get(c)) return false;
+    }
+    return stack.isEmpty();
+}
+```
+
+### Evaluate Reverse Polish Notation — [LeetCode 150](https://leetcode.com/problems/evaluate-reverse-polish-notation/)
+
+```java
+// OPTIMAL — O(n): operands on the stack, apply on operators
+int evalRPN(String[] tokens) {
+    Deque<Integer> st = new ArrayDeque<>();
+    for (String t : tokens) {
+        switch (t) {
+            case "+" -> st.push(st.pop() + st.pop());
+            case "*" -> st.push(st.pop() * st.pop());
+            case "-" -> { int b = st.pop(), a = st.pop(); st.push(a - b); }
+            case "/" -> { int b = st.pop(), a = st.pop(); st.push(a / b); }
+            default  -> st.push(Integer.parseInt(t));
+        }
+    }
+    return st.pop();
+}
+```
+
+### Min Stack — [LeetCode 155](https://leetcode.com/problems/min-stack/)
+
+```java
+// O(1) getMin: store (value, min-so-far) pairs
+class MinStack {
+    private final Deque<int[]> st = new ArrayDeque<>();   // [val, curMin]
+    public void push(int x) {
+        int min = st.isEmpty() ? x : Math.min(x, st.peek()[1]);
+        st.push(new int[]{x, min});
+    }
+    public void pop() { st.pop(); }
+    public int top() { return st.peek()[0]; }
+    public int getMin() { return st.peek()[1]; }
+}
+```
+
+## Pattern: monotonic stack
+
+Keep the stack increasing or decreasing to answer "next greater/smaller element" in
+O(n). Each element is pushed and popped at most once.
+
+### Daily Temperatures — [LeetCode 739](https://leetcode.com/problems/daily-temperatures/)
+
+```java
+// BRUTE FORCE — O(n^2): for each day scan forward
+int[] dailyTempBrute(int[] t) {
+    int[] res = new int[t.length];
+    for (int i = 0; i < t.length; i++)
+        for (int j = i + 1; j < t.length; j++)
+            if (t[j] > t[i]) { res[i] = j - i; break; }
+    return res;
+}
+
+// OPTIMAL — O(n): decreasing monotonic stack of indices
+int[] dailyTemperatures(int[] t) {
+    int[] res = new int[t.length];
+    Deque<Integer> stack = new ArrayDeque<>();   // indices, temps decreasing
+    for (int i = 0; i < t.length; i++) {
+        while (!stack.isEmpty() && t[i] > t[stack.peek()]) {
+            int j = stack.pop();
+            res[j] = i - j;                       // i is j's next warmer day
+        }
+        stack.push(i);
+    }
+    return res;
+}
+```
+
+<Important>
+Monotonic stack recognition: whenever you need the **next/previous greater or smaller**
+element, keep a stack whose values are monotonic and pop while the current element
+breaks the order. This turns O(n²) scans into O(n). It also powers *Largest Rectangle in
+Histogram* and *Trapping Rain Water*.
+</Important>
+
+## Pattern: monotonic queue
+
+A deque that stays monotonic gives the max/min of a sliding window in O(1) amortized.
+
+### Sliding Window Maximum — [LeetCode 239](https://leetcode.com/problems/sliding-window-maximum/)
+
+```java
+// OPTIMAL — O(n): deque of indices, values decreasing; front = window max
+int[] maxSlidingWindow(int[] a, int k) {
+    Deque<Integer> dq = new ArrayDeque<>();   // indices
+    int[] res = new int[a.length - k + 1];
+    for (int i = 0; i < a.length; i++) {
+        if (!dq.isEmpty() && dq.peekFirst() <= i - k) dq.pollFirst();  // drop out-of-window
+        while (!dq.isEmpty() && a[dq.peekLast()] < a[i]) dq.pollLast(); // drop smaller
+        dq.offerLast(i);
+        if (i >= k - 1) res[i - k + 1] = a[dq.peekFirst()];            // front is the max
+    }
+    return res;
+}
+```
+
+## Problem checklist
+
+- [Valid Parentheses](https://leetcode.com/problems/valid-parentheses/) · stack
+- [Min Stack](https://leetcode.com/problems/min-stack/) · stack + min
+- [Evaluate RPN](https://leetcode.com/problems/evaluate-reverse-polish-notation/) · stack
+- [Daily Temperatures](https://leetcode.com/problems/daily-temperatures/) · monotonic stack
+- [Next Greater Element](https://leetcode.com/problems/next-greater-element-i/) · monotonic stack
+- [Largest Rectangle in Histogram](https://leetcode.com/problems/largest-rectangle-in-histogram/) · monotonic stack
+- [Trapping Rain Water](https://leetcode.com/problems/trapping-rain-water/) · stack / two pointers
+- [Sliding Window Maximum](https://leetcode.com/problems/sliding-window-maximum/) · monotonic queue
+
+## Things You Should Know
+
+### 🔴 Must Know
+- `ArrayDeque` for stacks and queues.
+- Stack for parentheses/expression parsing.
+- Monotonic stack for next-greater/smaller in O(n).
+
+### 🟡 Good to Know
+- Monotonic queue for sliding-window max/min.
+- Min Stack via value/min pairs.
+
+### 🟢 Nice to Know
+- Histogram/rain-water as monotonic-stack applications.

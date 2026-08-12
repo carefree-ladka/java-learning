@@ -1,0 +1,162 @@
+---
+id: sorting
+title: "13. Sorting"
+sidebar_label: 13. Sorting
+sidebar_position: 14
+description: Sorting algorithms and their complexities — merge, quick, heap, counting sort — plus Java's Arrays.sort/Collections.sort and comparators.
+---
+
+# 13. Sorting
+
+You'll rarely implement a sort in an interview, but you must **understand** them:
+their complexity, stability, and when a specialized sort beats O(n log n).
+
+<ProgressTracker id="dsa-sorting" />
+
+## Table of Contents
+
+- [Complexity overview](#complexity-overview)
+- [Merge Sort](#merge-sort)
+- [Quick Sort](#quick-sort)
+- [Heap Sort](#heap-sort)
+- [Counting Sort](#counting-sort)
+- [Sorting in Java](#sorting-in-java)
+- [Things You Should Know](#things-you-should-know)
+
+## Complexity overview
+
+| Algorithm | Best | Average | Worst | Space | Stable? |
+| --- | --- | --- | --- | --- | --- |
+| Bubble | O(n) | O(n²) | O(n²) | O(1) | ✅ |
+| Selection | O(n²) | O(n²) | O(n²) | O(1) | ❌ |
+| Insertion | O(n) | O(n²) | O(n²) | O(1) | ✅ |
+| **Merge** | O(n log n) | O(n log n) | O(n log n) | O(n) | ✅ |
+| **Quick** | O(n log n) | O(n log n) | O(n²) | O(log n) | ❌ |
+| **Heap** | O(n log n) | O(n log n) | O(n log n) | O(1) | ❌ |
+| **Counting** | O(n + k) | O(n + k) | O(n + k) | O(k) | ✅ |
+
+<Important>
+**Stable** = equal elements keep their relative order (matters for multi-key sorts).
+Merge sort is stable and guaranteed O(n log n); quicksort is faster in practice but O(n²)
+worst case; counting sort beats the O(n log n) comparison lower bound because it doesn't
+compare — it counts (only works for small integer ranges).
+</Important>
+
+## Merge Sort
+
+Divide the array in half, sort each, merge. Stable, guaranteed O(n log n).
+
+```java
+void mergeSort(int[] a, int lo, int hi) {
+    if (lo >= hi) return;
+    int mid = lo + (hi - lo) / 2;
+    mergeSort(a, lo, mid);
+    mergeSort(a, mid + 1, hi);
+    merge(a, lo, mid, hi);
+}
+void merge(int[] a, int lo, int mid, int hi) {
+    int[] tmp = new int[hi - lo + 1];
+    int i = lo, j = mid + 1, k = 0;
+    while (i <= mid && j <= hi) tmp[k++] = (a[i] <= a[j]) ? a[i++] : a[j++];
+    while (i <= mid) tmp[k++] = a[i++];
+    while (j <= hi)  tmp[k++] = a[j++];
+    System.arraycopy(tmp, 0, a, lo, tmp.length);
+}
+```
+
+<Tip>
+Merge sort's merge step is the basis of "count inversions" and external sorting (sorting
+data too big for memory). It's also the stable sort Java uses for objects (Timsort).
+</Tip>
+
+## Quick Sort
+
+Partition around a pivot so smaller elements go left, larger go right; recurse.
+
+```java
+void quickSort(int[] a, int lo, int hi) {
+    if (lo >= hi) return;
+    int p = partition(a, lo, hi);
+    quickSort(a, lo, p - 1);
+    quickSort(a, p + 1, hi);
+}
+int partition(int[] a, int lo, int hi) {
+    int pivot = a[hi], i = lo;                 // Lomuto partition
+    for (int j = lo; j < hi; j++)
+        if (a[j] < pivot) swap(a, i++, j);
+    swap(a, i, hi);
+    return i;
+}
+void swap(int[] a, int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+```
+
+<Warning>
+Quicksort degrades to O(n²) on already-sorted input with a naive last-element pivot.
+Randomize the pivot or use median-of-three. The related **Quickselect** finds the kth
+element in O(n) average.
+</Warning>
+
+## Heap Sort
+
+Build a max-heap, then repeatedly extract the max to the end. In-place, O(n log n), not
+stable. Conceptually: `heapify` the array, then swap the root to the end and sift down.
+In practice, use `PriorityQueue` ([Heap](/docs/dsa/heap/)) rather than hand-rolling.
+
+## Counting Sort
+
+Non-comparison sort for small integer ranges — O(n + k).
+
+```java
+// Sort values in [0, k]; O(n + k)
+int[] countingSort(int[] a, int k) {
+    int[] count = new int[k + 1];
+    for (int x : a) count[x]++;                 // tally
+    int[] out = new int[a.length];
+    int idx = 0;
+    for (int v = 0; v <= k; v++)
+        while (count[v]-- > 0) out[idx++] = v;  // emit in order
+    return out;
+}
+```
+
+Used inside radix sort and for problems like *Sort Colors* (Dutch national flag) and
+bucket-based top-K.
+
+## Sorting in Java
+
+```java
+int[] a = {3, 1, 2};
+Arrays.sort(a);                                 // primitives: dual-pivot quicksort
+
+Integer[] boxed = {3, 1, 2};
+Arrays.sort(boxed, Comparator.reverseOrder());  // objects: stable Timsort
+
+List<Integer> list = new ArrayList<>(List.of(3, 1, 2));
+Collections.sort(list);
+list.sort(Comparator.naturalOrder());
+
+// Multi-key: by length, then lexicographically
+String[] words = {"bb", "a", "cc"};
+Arrays.sort(words, Comparator.comparingInt(String::length).thenComparing(s -> s));
+```
+
+<Warning>
+Java uses **dual-pivot quicksort for primitives** (not stable, but primitives have no
+identity so it doesn't matter) and **Timsort for objects** (stable). Avoid `(a, b) ->
+a - b` comparators for large/negative ints — overflow. Use `Integer.compare`.
+</Warning>
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Complexity + stability of merge/quick/heap/counting sort.
+- Merge sort = stable, guaranteed O(n log n); quicksort = fast, O(n²) worst.
+- `Arrays.sort`/`Collections.sort` and `Comparator` usage.
+
+### 🟡 Good to Know
+- Counting sort beats O(n log n) for small integer ranges.
+- Quickselect for kth element in O(n) average.
+
+### 🟢 Nice to Know
+- Timsort (Java's object sort) and dual-pivot quicksort (primitives).
+- Radix sort; counting inversions via merge sort.

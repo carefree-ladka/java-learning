@@ -1,0 +1,163 @@
+---
+id: hashing
+title: "3. Hashing"
+sidebar_label: 3. Hashing
+sidebar_position: 4
+description: Hash maps and sets as the go-to O(1) tool — frequency, complement, prefix-sum + map, and grouping patterns with Java code.
+---
+
+# 3. Hashing
+
+Hashing is the single most common way to turn an O(n²) brute force into O(n). If you
+find yourself scanning for a matching element, a `HashMap`/`HashSet` usually removes the
+inner loop.
+
+<ProgressTracker id="dsa-hashing" />
+
+## Table of Contents
+
+- [The core idea](#the-core-idea)
+- [Pattern: complement lookup](#pattern-complement-lookup)
+- [Pattern: frequency map](#pattern-frequency-map)
+- [Pattern: set membership](#pattern-set-membership)
+- [Pattern: prefix sum + map](#pattern-prefix-sum--map)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## The core idea
+
+```java
+Map<Integer, Integer> map = new HashMap<>();   // key -> value/count/index
+Set<Integer> set = new HashSet<>();            // membership
+```
+
+<Important>
+`HashMap`/`HashSet` give **average O(1)** insert, lookup, and delete. The trade-off is
+extra space and no ordering. When a brute force does "for each element, search for a
+related element", a hash structure usually collapses it to one pass.
+</Important>
+
+## Pattern: complement lookup
+
+### Two Sum — [LeetCode 1](https://leetcode.com/problems/two-sum/)
+
+```java
+// BRUTE FORCE — O(n^2): check every pair
+int[] twoSumBrute(int[] a, int target) {
+    for (int i = 0; i < a.length; i++)
+        for (int j = i + 1; j < a.length; j++)
+            if (a[i] + a[j] == target) return new int[]{i, j};
+    return new int[0];
+}
+
+// OPTIMAL — O(n): store value->index, look up the complement in one pass
+int[] twoSum(int[] a, int target) {
+    Map<Integer, Integer> seen = new HashMap<>();
+    for (int i = 0; i < a.length; i++) {
+        int need = target - a[i];
+        if (seen.containsKey(need)) return new int[]{seen.get(need), i};
+        seen.put(a[i], i);
+    }
+    return new int[0];
+}
+```
+
+## Pattern: frequency map
+
+### Top K Frequent Elements — [LeetCode 347](https://leetcode.com/problems/top-k-frequent-elements/)
+
+```java
+// OPTIMAL — O(n) with bucket sort by frequency
+int[] topKFrequent(int[] nums, int k) {
+    Map<Integer, Integer> freq = new HashMap<>();
+    for (int x : nums) freq.merge(x, 1, Integer::sum);
+
+    List<Integer>[] buckets = new List[nums.length + 1];  // index = frequency
+    for (var e : freq.entrySet()) {
+        int f = e.getValue();
+        if (buckets[f] == null) buckets[f] = new ArrayList<>();
+        buckets[f].add(e.getKey());
+    }
+    int[] res = new int[k];
+    int idx = 0;
+    for (int f = buckets.length - 1; f >= 0 && idx < k; f--) {
+        if (buckets[f] != null) for (int v : buckets[f]) { if (idx < k) res[idx++] = v; }
+    }
+    return res;
+}
+```
+
+<Tip>
+When you need "top K by frequency", two options: a **heap** of size K (O(n log k)) or
+**bucket sort** by frequency (O(n)). Bucket sort wins because frequencies are bounded by
+`n`. See [Heap](/docs/dsa/heap/) for the heap version.
+</Tip>
+
+## Pattern: set membership
+
+### Longest Consecutive Sequence — [LeetCode 128](https://leetcode.com/problems/longest-consecutive-sequence/)
+
+```java
+// OPTIMAL — O(n): only start counting at sequence beginnings
+int longestConsecutive(int[] nums) {
+    Set<Integer> set = new HashSet<>();
+    for (int x : nums) set.add(x);
+    int best = 0;
+    for (int x : set) {
+        if (!set.contains(x - 1)) {            // x is a sequence start
+            int len = 1;
+            while (set.contains(x + len)) len++;
+            best = Math.max(best, len);
+        }
+    }
+    return best;
+}
+```
+
+<Important>
+The trick that keeps this O(n): only extend a run when `x - 1` is **absent**, so each
+number is visited at most twice. Without that guard it degrades to O(n²).
+</Important>
+
+## Pattern: prefix sum + map
+
+Covered in depth on the [Arrays](/docs/dsa/arrays/#pattern-3--prefix-sum) page —
+"how many earlier prefixes equal `prefix - k`?" powers *Subarray Sum Equals K*,
+*Continuous Subarray Sum*, and *Contiguous Array*.
+
+```java
+// 4Sum II — count quadruples summing to 0 across four arrays: O(n^2)
+int fourSumCount(int[] a, int[] b, int[] c, int[] d) {
+    Map<Integer, Integer> ab = new HashMap<>();
+    for (int x : a) for (int y : b) ab.merge(x + y, 1, Integer::sum);
+    int count = 0;
+    for (int x : c) for (int y : d) count += ab.getOrDefault(-(x + y), 0);
+    return count;
+}
+```
+
+## Problem checklist
+
+- [Two Sum](https://leetcode.com/problems/two-sum/) · complement
+- [Contains Duplicate](https://leetcode.com/problems/contains-duplicate/) · set
+- [Group Anagrams](https://leetcode.com/problems/group-anagrams/) · grouping
+- [Top K Frequent Elements](https://leetcode.com/problems/top-k-frequent-elements/) · frequency
+- [Longest Consecutive Sequence](https://leetcode.com/problems/longest-consecutive-sequence/) · set
+- [Subarray Sum Equals K](https://leetcode.com/problems/subarray-sum-equals-k/) · prefix + map
+- [4Sum II](https://leetcode.com/problems/4sum-ii/) · two-map split
+- [Valid Sudoku](https://leetcode.com/problems/valid-sudoku/) · sets per row/col/box
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Complement lookup (Two Sum) and frequency maps (`merge`).
+- Set membership for O(1) contains and dedupe.
+- Prefix sum + map for subarray-sum problems.
+
+### 🟡 Good to Know
+- Bucket sort by frequency for top-K in O(n).
+- Two-map split (4Sum II) to halve the exponent.
+
+### 🟢 Nice to Know
+- Custom keys need consistent `equals`/`hashCode` (use records).
+- Hash DoS and why interview constraints stay average-case.

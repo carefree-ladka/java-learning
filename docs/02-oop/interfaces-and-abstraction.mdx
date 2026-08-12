@@ -1,0 +1,127 @@
+---
+id: interfaces-and-abstraction
+title: Interfaces & Abstraction
+sidebar_label: Interfaces & Abstraction
+sidebar_position: 2
+description: Interfaces vs abstract classes, default and static methods, and programming to abstractions in Spring.
+---
+
+# Interfaces & Abstraction
+
+<ProgressTracker id="interfaces-and-abstraction" />
+
+## Table of Contents
+
+- [What is abstraction?](#what-is-abstraction)
+- [Interfaces](#interfaces)
+- [Default & static methods](#default--static-methods)
+- [Interface vs abstract class](#interface-vs-abstract-class)
+- [Backend usage](#backend-usage)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## What is abstraction?
+
+Abstraction means exposing **what** something does while hiding **how**. You depend
+on a contract, not a concrete implementation, which keeps modules loosely coupled
+and swappable.
+
+## Interfaces
+
+An interface is a pure contract: method signatures that implementers must fulfill.
+A class can implement many interfaces (multiple inheritance of type).
+
+```java
+public interface PaymentGateway {
+    PaymentResult charge(Order order);
+    void refund(String transactionId);
+}
+
+public class StripeGateway implements PaymentGateway {
+    public PaymentResult charge(Order order) { /* call Stripe */ }
+    public void refund(String txId) { /* call Stripe */ }
+}
+```
+
+## Default & static methods
+
+Since Java 8, interfaces can carry `default` (instance) and `static` methods,
+allowing you to add behavior without breaking existing implementers.
+
+```java
+public interface AuditLog {
+    void record(String event);
+
+    default void recordLogin(String user) {   // reusable, overridable
+        record("LOGIN:" + user);
+    }
+
+    static AuditLog noop() {                    // factory helper
+        return event -> { };
+    }
+}
+```
+
+## Interface vs abstract class
+
+| | Interface | Abstract class |
+| --- | --- | --- |
+| Multiple inheritance | Yes (many interfaces) | No (one superclass) |
+| State (fields) | Only constants | Instance fields allowed |
+| Constructor | No | Yes |
+| Methods | abstract + default + static | any mix |
+| Models | a **capability / contract** | a **base type (IS-A)** with shared state |
+
+<Interview>
+Rule of thumb: use an **interface** to define a role or capability that unrelated
+classes can share (e.g. `Comparable`, `PaymentGateway`). Use an **abstract class**
+when subclasses share state and partial implementation and form a true IS-A family.
+Prefer interfaces — they keep code decoupled and testable.
+</Interview>
+
+## Backend usage
+
+<Backend>
+Spring is built on programming to interfaces. You inject `UserRepository` (an
+interface); Spring provides the implementation. Your `UserService` depends only on
+the contract, so tests can substitute a mock and you can swap JPA for another store
+without touching the service.
+</Backend>
+
+```java
+@Service
+public class UserService {
+    private final UserRepository repository;   // depend on the interface
+
+    public UserService(UserRepository repository) {
+        this.repository = repository;
+    }
+}
+```
+
+## Interview questions
+
+**Q: Can an interface have method bodies?**
+Yes, via `default` and `static` methods (Java 8+) and `private` helper methods
+(Java 9+). Fields are still constants only.
+
+**Q: Why did Java add default methods?**
+To evolve interfaces (e.g. add `Collection.stream()`) without breaking every
+existing implementer.
+
+**Q: Diamond problem with default methods?**
+If two interfaces provide the same default method, the implementing class must
+override it and can call `Interface.super.method()` to disambiguate.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Interface = contract, many per class; abstract class = shared base, one per class.
+- Program to interfaces for testability and loose coupling.
+
+### 🟡 Good to Know
+- Default/static/private interface methods and why they exist.
+- Functional interfaces (single abstract method) power lambdas.
+
+### 🟢 Nice to Know
+- Sealed interfaces to restrict implementers (Java 17+).

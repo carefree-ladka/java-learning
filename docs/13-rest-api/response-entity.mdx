@@ -1,0 +1,335 @@
+---
+id: response-entity
+title: ResponseEntity — The Complete Guide
+sidebar_label: ResponseEntity
+sidebar_position: 3
+description: Everything about ResponseEntity in Spring Boot — status, headers, body, builders, when to use it vs returning a DTO, files, ETags, ProblemDetail, and ResponseEntity vs @ResponseStatus.
+---
+
+# ResponseEntity — The Complete Guide
+
+`ResponseEntity<T>` represents the **entire** HTTP response: status code, headers, and
+body. Use it when you need full control over what goes back to the client. This page
+covers every form you'll use in a Spring Boot backend.
+
+<ProgressTracker id="rest-response-entity" />
+
+## Table of Contents
+
+- [What is ResponseEntity?](#what-is-responseentity)
+- [Building responses](#building-responses)
+- [Status codes](#status-codes)
+- [Setting headers](#setting-headers)
+- [201 Created with Location](#201-created-with-location)
+- [204 No Content & empty bodies](#204-no-content--empty-bodies)
+- [The generic type & body](#the-generic-type--body)
+- [ResponseEntity vs returning a DTO](#responseentity-vs-returning-a-dto)
+- [ResponseEntity vs @ResponseStatus vs @ResponseBody](#responseentity-vs-responsestatus-vs-responsebody)
+- [Reading responses: RestClient/RestTemplate](#reading-responses-restclientresttemplate)
+- [Files & streaming](#files--streaming)
+- [Caching with ETag](#caching-with-etag)
+- [ProblemDetail for errors](#problemdetail-for-errors)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## What is ResponseEntity?
+
+A controller can return three things:
+- A **DTO/object** → Spring serializes it as the body with a `200 OK`.
+- **`ResponseEntity<T>`** → you control status + headers + body.
+- **`void`** → empty `200` (or use `@ResponseStatus`).
+
+```java
+// Full control: status + headers + body
+ResponseEntity<UserResponse> res = ResponseEntity
+    .status(HttpStatus.OK)
+    .header("X-Trace-Id", traceId)
+    .body(new UserResponse(1L, "Ann", "a@x.com"));
+```
+
+## Building responses
+
+`ResponseEntity` offers static factory methods and a fluent builder.
+
+```java
+// Static shortcuts
+ResponseEntity.ok(body);                          // 200 with body
+ResponseEntity.ok().build();                      // 200, no body
+ResponseEntity.notFound().build();                // 404
+ResponseEntity.badRequest().body(error);          // 400 with body
+ResponseEntity.noContent().build();               // 204
+ResponseEntity.status(HttpStatus.CONFLICT).body(err);  // any status
+
+// The builder chain (BodyBuilder / HeadersBuilder)
+return ResponseEntity
+    .status(HttpStatus.CREATED)
+    .header("X-Custom", "value")
+    .contentType(MediaType.APPLICATION_JSON)
+    .body(dto);
+```
+
+<Important>
+`ResponseEntity` is **immutable** and built via a builder. `status(...)` and
+`badRequest()`/`ok()` return a `BodyBuilder`; call `.body(x)` to attach a body or
+`.build()` for no body. `notFound()`/`noContent()` return a `HeadersBuilder` (no body
+allowed) so you must call `.build()`.
+</Important>
+
+## Status codes
+
+```java
+ResponseEntity.ok(dto);                                    // 200 OK
+ResponseEntity.status(HttpStatus.CREATED).body(dto);       // 201 Created
+ResponseEntity.noContent().build();                        // 204 No Content
+ResponseEntity.badRequest().body(err);                     // 400 Bad Request
+ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();    // 401
+ResponseEntity.status(HttpStatus.FORBIDDEN).build();       // 403
+ResponseEntity.notFound().build();                         // 404 Not Found
+ResponseEntity.status(HttpStatus.CONFLICT).body(err);      // 409 Conflict
+ResponseEntity.unprocessableEntity().body(err);            // 422
+ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build(); // 429
+ResponseEntity.internalServerError().body(err);            // 500
+```
+
+Pick the right code — see the [HTTP cheat sheet](/docs/cheat-sheets/http-rest/).
+
+## Setting headers
+
+```java
+// Individual headers
+return ResponseEntity.ok()
+    .header(HttpHeaders.CACHE_CONTROL, "max-age=3600")
+    .header("X-Total-Count", String.valueOf(total))
+    .body(page);
+
+// A whole HttpHeaders object
+HttpHeaders headers = new HttpHeaders();
+headers.setContentType(MediaType.APPLICATION_JSON);
+headers.set("X-RateLimit-Remaining", "42");
+return new ResponseEntity<>(dto, headers, HttpStatus.OK);
+```
+
+## 201 Created with Location
+
+The correct response to a successful `POST` that creates a resource: **201** plus a
+`Location` header pointing to the new resource.
+
+```java
+@PostMapping("/api/users")
+public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest req) {
+    UserResponse created = service.create(req);
+    URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+        .path("/{id}")
+        .buildAndExpand(created.id())
+        .toUri();                                  // /api/users/1
+    return ResponseEntity.created(location).body(created);
+}
+```
+
+<Tip>
+`ResponseEntity.created(uri)` sets both the `201` status and the `Location` header in one
+call. Build the URI from the current request so it stays correct behind proxies and
+context paths.
+</Tip>
+
+## 204 No Content & empty bodies
+
+Use `204` for successful operations with nothing to return (a delete, or a `PUT` that
+returns no body).
+
+```java
+@DeleteMapping("/api/users/{id}")
+public ResponseEntity<Void> delete(@PathVariable Long id) {
+    service.delete(id);
+    return ResponseEntity.noContent().build();     // 204, no body
+}
+```
+
+<Warning>
+`204 No Content` must have an **empty body**. `noContent()` returns a `HeadersBuilder`
+with no `.body(...)` method precisely to enforce this. Returning a body with 204 violates
+the HTTP spec and confuses clients.
+</Warning>
+
+## The generic type & body
+
+The type parameter is the body type. Use `Void` for no body, `?` when it varies.
+
+```java
+ResponseEntity<UserResponse>       // body is a UserResponse
+ResponseEntity<List<OrderDto>>     // body is a list
+ResponseEntity<Void>               // no body (deletes, 204)
+ResponseEntity<?>                  // body type varies (e.g. dto on success, error on failure)
+
+// Returning different bodies from one method -> use <?>
+@GetMapping("/api/users/{id}")
+public ResponseEntity<?> get(@PathVariable Long id) {
+    return service.find(id)
+        .<ResponseEntity<?>>map(ResponseEntity::ok)                    // 200 + UserResponse
+        .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ApiError(404, "NOT_FOUND", "no such user")));    // 404 + error
+}
+```
+
+## ResponseEntity vs returning a DTO
+
+You don't always need `ResponseEntity`. Return the DTO directly when the response is
+"just a 200 with this body".
+
+```java
+// Simple: Spring returns 200 OK and serializes the DTO
+@GetMapping("/api/users/{id}")
+public UserResponse get(@PathVariable Long id) {
+    return service.getById(id);                    // 200 automatically
+}
+
+// Use ResponseEntity when you need a non-200 status, headers, or a Location
+@PostMapping("/api/users")
+public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest req) {
+    return ResponseEntity.created(locationOf(...)).body(service.create(req));
+}
+```
+
+<Important>
+Rule of thumb: **return the DTO** for plain 200 reads (cleaner, less boilerplate); use
+**`ResponseEntity`** when you need a specific status (201/204/4xx), custom headers, a
+`Location`, or a body that varies by outcome. Let the global `@RestControllerAdvice`
+handle error statuses so happy-path methods stay simple.
+</Important>
+
+## ResponseEntity vs @ResponseStatus vs @ResponseBody
+
+| Approach | Controls | Use when |
+| --- | --- | --- |
+| Return DTO (with `@RestController`) | Body only (always 200) | Simple reads |
+| `@ResponseStatus(HttpStatus.CREATED)` on method | Fixed status + body | Status is always the same |
+| `ResponseEntity<T>` | Status + headers + body, dynamically | Status/headers vary per request |
+| `@ResponseBody` | Marks return value as the body (implied by `@RestController`) | MVC `@Controller` returning JSON |
+
+```java
+// @ResponseStatus: fixed status, no ResponseEntity needed
+@PostMapping("/api/events")
+@ResponseStatus(HttpStatus.ACCEPTED)               // always 202
+public void ingest(@RequestBody Event e) { queue.publish(e); }
+```
+
+<Note>
+`@RestController` = `@Controller` + `@ResponseBody`, so every method's return value is
+automatically written to the response body as JSON. You only add `@ResponseBody`
+explicitly on a plain `@Controller`.
+</Note>
+
+## Reading responses: RestClient/RestTemplate
+
+`ResponseEntity` also represents responses you **receive** when calling other services.
+
+```java
+// RestClient (Spring 6.1+) — inspect status, headers, and body of a downstream call
+ResponseEntity<OrderDto> res = restClient.get()
+    .uri("/api/orders/{id}", id)
+    .retrieve()
+    .toEntity(OrderDto.class);
+
+HttpStatusCode status = res.getStatusCode();
+OrderDto body = res.getBody();
+List<String> etag = res.getHeaders().get(HttpHeaders.ETAG);
+```
+
+## Files & streaming
+
+```java
+// Download a file as an attachment
+@GetMapping("/api/reports/{id}")
+public ResponseEntity<Resource> download(@PathVariable Long id) {
+    Resource file = reportService.load(id);
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_PDF)
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report.pdf\"")
+        .body(file);
+}
+```
+
+<Backend>
+For large payloads, return a `Resource` (streams from disk/S3 without loading it all into
+memory) or a `StreamingResponseBody`. Don't buffer megabytes into a `byte[]` body — it
+spikes heap and risks `OutOfMemoryError` under load. Prefer presigned URLs for very large
+files (see [System Design → Storage](/docs/system-design/concepts/storage/)).
+</Backend>
+
+## Caching with ETag
+
+```java
+@GetMapping("/api/products/{id}")
+public ResponseEntity<ProductDto> get(@PathVariable Long id) {
+    ProductDto dto = service.get(id);
+    return ResponseEntity.ok()
+        .eTag("\"" + dto.version() + "\"")             // validator
+        .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)))
+        .body(dto);
+}
+```
+
+A matching `If-None-Match` request can then get a `304 Not Modified` (Spring's
+`ShallowEtagHeaderFilter` can automate this). See [CDN](/docs/system-design/concepts/cdn/).
+
+## ProblemDetail for errors
+
+For error responses, `ResponseEntity<ProblemDetail>` (or returning `ProblemDetail`
+directly) gives the RFC 7807 standard format.
+
+```java
+@ExceptionHandler(OrderNotFoundException.class)
+public ResponseEntity<ProblemDetail> handle(OrderNotFoundException ex) {
+    ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    pd.setTitle("Order Not Found");
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
+}
+```
+
+See [Validation & Error Handling](/docs/rest-api/validation-and-errors/) for the full
+global handler.
+
+## Common mistakes
+
+<Warning>
+- Wrapping every read in `ResponseEntity.ok(...)` when returning the DTO is cleaner.
+- Attaching a body to `204 No Content`.
+- Returning `200` for creates instead of `201 Created` with a `Location`.
+- Building the `Location` URI by hand instead of `ServletUriComponentsBuilder`.
+- Buffering huge files into a `byte[]` body instead of streaming a `Resource`.
+- Putting error handling in every controller instead of a global `@RestControllerAdvice`.
+</Warning>
+
+## Interview questions
+
+**Q: When do you use `ResponseEntity` vs returning a DTO?**
+Return the DTO for a plain 200 with a body; use `ResponseEntity` when you need a specific
+status, custom headers, a `Location`, or a body that varies per outcome.
+
+**Q: How do you return 201 Created correctly?**
+`ResponseEntity.created(location).body(dto)` — sets 201 and the `Location` header to the
+new resource's URI.
+
+**Q: `ResponseEntity` vs `@ResponseStatus`?**
+`@ResponseStatus` sets a fixed status declaratively; `ResponseEntity` lets you choose
+status/headers/body dynamically at runtime.
+
+**Q: What does `@RestController` do regarding the body?**
+It combines `@Controller` and `@ResponseBody`, so return values are serialized to the
+response body automatically.
+
+## Things You Should Know
+
+### 🔴 Must Know
+- `ResponseEntity` = status + headers + body, built via a fluent builder.
+- `ok`/`created(uri)`/`noContent`/`notFound`/`badRequest` factories; 204 has no body.
+- Return DTO for simple 200s; `ResponseEntity` for control.
+
+### 🟡 Good to Know
+- `ResponseEntity` on the client side (`RestClient.toEntity`).
+- `Resource`/streaming for files; ETag/Cache-Control headers.
+
+### 🟢 Nice to Know
+- `@ResponseStatus` vs `ResponseEntity`; `ResponseEntity<ProblemDetail>` for RFC 7807.
+- `ResponseEntity<?>` for outcome-dependent body types.

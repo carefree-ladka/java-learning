@@ -1,0 +1,63 @@
+---
+id: http-rest
+title: "Cheat Sheet: HTTP & REST"
+sidebar_label: HTTP & REST
+sidebar_position: 3
+description: HTTP status codes, methods, and REST design rules at a glance.
+---
+
+# HTTP & REST Cheat Sheet
+
+<ProgressTracker id="cheat-http" />
+
+## Status codes
+
+| Code | Meaning | Use when |
+| --- | --- | --- |
+| 200 OK | Success | GET/PUT/PATCH success with body |
+| 201 Created | Resource created | POST created a resource (+ `Location`) |
+| 204 No Content | Success, no body | DELETE, or PUT with no response body |
+| 301 / 302 | Moved permanently / found | Redirects |
+| 304 Not Modified | Cache valid | Conditional GET |
+| 400 Bad Request | Malformed request | Invalid JSON / missing field |
+| 401 Unauthorized | Not authenticated | Missing/invalid credentials |
+| 403 Forbidden | Authenticated, not allowed | Insufficient role |
+| 404 Not Found | Resource missing | Unknown id |
+| 409 Conflict | State conflict | Duplicate / version conflict |
+| 422 Unprocessable | Semantic validation failed | Business-rule validation |
+| 429 Too Many Requests | Rate limited | Over quota (+ `Retry-After`) |
+| 500 Internal Server Error | Server bug | Unhandled exception |
+| 502 / 503 / 504 | Gateway / unavailable / timeout | Upstream problems |
+
+## Methods
+
+| Method | Purpose | Safe | Idempotent |
+| --- | --- | :---: | :---: |
+| GET | Read | ✅ | ✅ |
+| POST | Create / action | ❌ | ❌ |
+| PUT | Full replace | ❌ | ✅ |
+| PATCH | Partial update | ❌ | ❌ |
+| DELETE | Remove | ❌ | ✅ |
+
+## REST design rules
+
+- URIs name **resources** (nouns): `/orders/42/items`, not `/getOrderItems`.
+- Use plural collections: `/api/users`.
+- Nest for relationships: `/api/users/42/orders`.
+- Filter/paginate/sort with query params: `?status=PAID&page=0&size=20&sort=createdAt,desc`.
+- Never mutate in `GET`. Make `PUT`/`DELETE` idempotent.
+- Version in the path: `/api/v1/...`.
+- Return a **consistent error body** for all failures.
+- Support **idempotency keys** for non-idempotent creates (payments).
+
+## Common headers
+
+| Header | Purpose |
+| --- | --- |
+| `Authorization: Bearer <token>` | Auth |
+| `Content-Type: application/json` | Request/response body type |
+| `Accept` | Desired response type |
+| `Location` | URI of a created resource (201) |
+| `Retry-After` | When to retry (429/503) |
+| `ETag` / `If-None-Match` | Caching / conditional requests |
+| `Idempotency-Key` | Safe retries for creates |

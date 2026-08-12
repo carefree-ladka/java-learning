@@ -1,0 +1,207 @@
+---
+id: trees
+title: "8. Trees"
+sidebar_label: 8. Trees
+sidebar_position: 9
+description: Binary tree and BST patterns — DFS (pre/in/post) and BFS traversals, depth/diameter, path sums, validation, and LCA.
+---
+
+# 8. Trees
+
+Trees are a top interview topic. Almost everything is **recursive DFS** or **level-order
+BFS**. Learn the two skeletons and most tree problems become fill-in-the-blank.
+
+<ProgressTracker id="dsa-trees" />
+
+## Table of Contents
+
+- [The node](#the-node)
+- [DFS traversals](#dfs-traversals)
+- [BFS: level order](#bfs-level-order)
+- [Recursive DFS patterns](#recursive-dfs-patterns)
+- [Path problems](#path-problems)
+- [Binary Search Tree](#binary-search-tree)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## The node
+
+```java
+class TreeNode {
+    int val;
+    TreeNode left, right;
+    TreeNode(int val) { this.val = val; }
+}
+```
+
+## DFS traversals
+
+```java
+// Preorder: node, left, right
+void preorder(TreeNode n, List<Integer> out) {
+    if (n == null) return;
+    out.add(n.val); preorder(n.left, out); preorder(n.right, out);
+}
+// Inorder: left, node, right  (sorted order for a BST!)
+void inorder(TreeNode n, List<Integer> out) {
+    if (n == null) return;
+    inorder(n.left, out); out.add(n.val); inorder(n.right, out);
+}
+// Postorder: left, right, node  (children before parent)
+void postorder(TreeNode n, List<Integer> out) {
+    if (n == null) return;
+    postorder(n.left, out); postorder(n.right, out); out.add(n.val);
+}
+```
+
+<Important>
+**Inorder traversal of a BST yields sorted values** — the key to *Validate BST* and
+*Kth Smallest*. **Postorder** processes children before the parent — the key to
+bottom-up problems like height, diameter, and max path sum.
+</Important>
+
+## BFS: level order
+
+### Binary Tree Level Order Traversal — [LeetCode 102](https://leetcode.com/problems/binary-tree-level-order-traversal/)
+
+```java
+// OPTIMAL — O(n): process one full level per outer iteration
+List<List<Integer>> levelOrder(TreeNode root) {
+    List<List<Integer>> res = new ArrayList<>();
+    if (root == null) return res;
+    Queue<TreeNode> q = new ArrayDeque<>();
+    q.offer(root);
+    while (!q.isEmpty()) {
+        int size = q.size();                  // fix this level's node count
+        List<Integer> level = new ArrayList<>();
+        for (int i = 0; i < size; i++) {
+            TreeNode n = q.poll();
+            level.add(n.val);
+            if (n.left != null) q.offer(n.left);
+            if (n.right != null) q.offer(n.right);
+        }
+        res.add(level);
+    }
+    return res;
+}
+```
+
+<Tip>
+The BFS trick for "per level" problems: snapshot `q.size()` at the top of the loop so
+the inner `for` drains exactly one level. This powers level order, right-side view,
+zigzag, and minimum depth.
+</Tip>
+
+## Recursive DFS patterns
+
+```java
+// Maximum Depth — LeetCode 104
+int maxDepth(TreeNode n) {
+    if (n == null) return 0;
+    return 1 + Math.max(maxDepth(n.left), maxDepth(n.right));
+}
+
+// Invert Binary Tree — LeetCode 226
+TreeNode invert(TreeNode n) {
+    if (n == null) return null;
+    TreeNode l = invert(n.left);
+    n.left = invert(n.right);
+    n.right = l;
+    return n;
+}
+
+// Same Tree — LeetCode 100
+boolean sameTree(TreeNode a, TreeNode b) {
+    if (a == null || b == null) return a == b;
+    return a.val == b.val && sameTree(a.left, b.left) && sameTree(a.right, b.right);
+}
+```
+
+### Diameter of Binary Tree — [LeetCode 543](https://leetcode.com/problems/diameter-of-binary-tree/)
+
+```java
+// Postorder: return height, update the global best (longest path through a node)
+int best = 0;
+int diameterOfBinaryTree(TreeNode root) { height(root); return best; }
+int height(TreeNode n) {
+    if (n == null) return 0;
+    int l = height(n.left), r = height(n.right);
+    best = Math.max(best, l + r);        // path through n = leftH + rightH
+    return 1 + Math.max(l, r);
+}
+```
+
+## Path problems
+
+### Binary Tree Maximum Path Sum — [LeetCode 124](https://leetcode.com/problems/binary-tree-maximum-path-sum/)
+
+```java
+// Postorder: each node returns best downward gain; update global best
+int maxSum = Integer.MIN_VALUE;
+int maxPathSum(TreeNode root) { gain(root); return maxSum; }
+int gain(TreeNode n) {
+    if (n == null) return 0;
+    int l = Math.max(0, gain(n.left));    // ignore negative branches
+    int r = Math.max(0, gain(n.right));
+    maxSum = Math.max(maxSum, n.val + l + r);   // path bending at n
+    return n.val + Math.max(l, r);              // can only extend one side upward
+}
+```
+
+## Binary Search Tree
+
+### Validate BST — [LeetCode 98](https://leetcode.com/problems/validate-binary-search-tree/)
+
+```java
+// Bound each node by (low, high); tighten as you descend
+boolean isValidBST(TreeNode root) { return valid(root, null, null); }
+boolean valid(TreeNode n, Integer low, Integer high) {
+    if (n == null) return true;
+    if (low != null && n.val <= low) return false;
+    if (high != null && n.val >= high) return false;
+    return valid(n.left, low, n.val) && valid(n.right, n.val, high);
+}
+```
+
+### Lowest Common Ancestor of a BST — [LeetCode 235](https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-search-tree/)
+
+```java
+// Use BST ordering: split point is the LCA — O(h)
+TreeNode lca(TreeNode node, TreeNode p, TreeNode q) {
+    while (node != null) {
+        if (p.val < node.val && q.val < node.val) node = node.left;
+        else if (p.val > node.val && q.val > node.val) node = node.right;
+        else return node;      // p and q on different sides -> this is the LCA
+    }
+    return null;
+}
+```
+
+## Problem checklist
+
+- [Maximum Depth](https://leetcode.com/problems/maximum-depth-of-binary-tree/)
+- [Invert Binary Tree](https://leetcode.com/problems/invert-binary-tree/)
+- [Diameter of Binary Tree](https://leetcode.com/problems/diameter-of-binary-tree/)
+- [Balanced Binary Tree](https://leetcode.com/problems/balanced-binary-tree/)
+- [Level Order Traversal](https://leetcode.com/problems/binary-tree-level-order-traversal/)
+- [Right Side View](https://leetcode.com/problems/binary-tree-right-side-view/)
+- [Validate BST](https://leetcode.com/problems/validate-binary-search-tree/)
+- [Kth Smallest in a BST](https://leetcode.com/problems/kth-smallest-element-in-a-bst/)
+- [LCA of a Binary Tree](https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/)
+- [Binary Tree Maximum Path Sum](https://leetcode.com/problems/binary-tree-maximum-path-sum/)
+- [Serialize and Deserialize Binary Tree](https://leetcode.com/problems/serialize-and-deserialize-binary-tree/)
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Pre/in/post-order DFS and level-order BFS skeletons.
+- BST inorder = sorted; postorder for bottom-up (height/diameter/path sum).
+- BFS "snapshot q.size()" for per-level work.
+
+### 🟡 Good to Know
+- Bounds technique for Validate BST; BST LCA via ordering.
+- Global-variable pattern for diameter/max-path-sum.
+
+### 🟢 Nice to Know
+- Morris traversal (O(1) space inorder).
+- Serialize/deserialize via preorder + null markers.

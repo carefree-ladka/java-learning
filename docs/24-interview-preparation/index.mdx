@@ -1,0 +1,226 @@
+---
+id: index
+title: Interview Preparation
+sidebar_label: Interview Preparation
+sidebar_position: 0
+slug: /interview-preparation/
+description: A curated bank of the most-asked Java backend interview questions with short and detailed answers, follow-ups, and common mistakes.
+---
+
+# Interview Preparation
+
+Every topic in this site ends with its own interview questions. This page is the
+**high-yield bank** — the questions that come up again and again — with the answer
+format interviewers reward: a crisp one-liner, then depth on demand.
+
+<ProgressTracker id="interview-prep-overview" />
+
+## How to answer
+
+<Tip>
+Lead with a **one-sentence answer**, then expand. Interviewers are listening for the
+headline first. Follow the pattern: **answer → why → example → trade-off.** If you
+don't know, reason out loud — thought process scores points.
+</Tip>
+
+## Study plan
+
+Pick a timeline by experience and work the matching question bank end to end.
+
+| Level | Experience | Timeline | Focus |
+| --- | --- | --- | --- |
+| 🟢 **Beginner** | 0–2 years | 2–3 weeks | Core Java, OOP, collections, exceptions, Spring Boot & REST basics |
+| 🟡 **Intermediate** | 2–4 years | 3–4 weeks | Collections internals, Java 8, concurrency, memory, Spring/JPA/testing |
+| 🔴 **Advanced** | 4+ years | 4–6 weeks | JVM, advanced concurrency, Spring internals, security, microservices, Kafka, design |
+
+<Important>
+The **319-question bank** below is organized to match this plan. Each question has a
+crisp answer plus a link to the full explanation elsewhere on the site. Don't just read —
+say each answer out loud, then re-derive it from the linked deep dive.
+</Important>
+
+## The full question bank
+
+<div className="jbm-card-grid">
+  <Link className="jbm-card" to="/docs/interview-preparation/level-1-beginner">
+    <div className="jbm-card__icon">🟢</div>
+    <h3>Level 1 — Beginner</h3>
+    <p>Q1–57: Core Java, OOP, Strings, Collections, Exceptions, Spring Boot & REST basics.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/interview-preparation/level-2-intermediate">
+    <div className="jbm-card__icon">🟡</div>
+    <h3>Level 2 — Intermediate</h3>
+    <p>Q58–146: Collections internals, Java 8, concurrency, memory, Spring, DI, JPA, testing.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/interview-preparation/level-3-advanced-core">
+    <div className="jbm-card__icon">🔴</div>
+    <h3>Level 3 — Advanced (Core)</h3>
+    <p>Q147–193: JVM internals, advanced concurrency, Spring internals, AOP.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/interview-preparation/level-3-advanced-systems">
+    <div className="jbm-card__icon">🏗️</div>
+    <h3>Level 3 — Advanced (Systems)</h3>
+    <p>Q194–292: Security, microservices, Kafka, database & caching, design patterns, cloud.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/interview-preparation/modern-java-17-21">
+    <div className="jbm-card__icon">✨</div>
+    <h3>Modern Java (17–21)</h3>
+    <p>Q293–306: Virtual threads, records, pattern matching, sequenced collections.</p>
+  </Link>
+  <Link className="jbm-card" to="/docs/interview-preparation/scenario-based">
+    <div className="jbm-card__icon">🎯</div>
+    <h3>Scenario-Based</h3>
+    <p>Q307–319: Real-world troubleshooting and design decisions.</p>
+  </Link>
+</div>
+
+## Table of Contents
+
+- [Core Java](#core-java)
+- [Collections & Concurrency](#collections--concurrency)
+- [Spring & Spring Boot](#spring--spring-boot)
+- [Databases & JPA](#databases--jpa)
+- [System Design & Backend](#system-design--backend)
+- [Coding questions](#coding-questions)
+
+## Core Java
+
+### Why override `equals()` and `hashCode()` together?
+**Short:** hash-based collections use `hashCode` to pick the bucket and `equals` to
+match within it; if equal objects have different hash codes they land in different
+buckets and become unreachable.
+**Follow-ups:** what if `hashCode` returns a constant? (works but O(n)); records?
+(auto-generated). **Mistake:** overriding one but not the other.
+
+### Why are Strings immutable?
+**Short:** thread safety, safe pooling/caching, safe map keys, and security.
+**Detail:** immutability lets the JVM share literals via the string pool and
+guarantees a key's hash never changes. See [Strings](/docs/java-fundamentals/strings/).
+
+### `==` vs `.equals()`?
+**Short:** `==` compares references (or primitive values); `.equals()` compares
+logical equality. **Mistake:** comparing wrapper `Integer`s with `==` (works only in
+the -128..127 cache).
+
+### Checked vs unchecked exceptions?
+**Short:** checked = compiler-enforced, recoverable external conditions; unchecked =
+`RuntimeException`, programming errors. Spring favors unchecked. `@Transactional`
+rolls back on unchecked by default.
+
+## Collections & Concurrency
+
+### How does `HashMap` work internally?
+**Short:** array of buckets; key's `hashCode` (bit-spread) picks the bucket; collisions
+chain then treeify past 8; resizes at 0.75 load factor. Full detail:
+[HashMap Internals](/docs/collections/hashmap-internals/).
+
+### `HashMap` vs `ConcurrentHashMap`?
+**Short:** `ConcurrentHashMap` is thread-safe with bucket-level locking and no nulls;
+`HashMap` is single-thread only and allows one null key. **Follow-up:** why not
+`Collections.synchronizedMap`? (locks whole map, needs external sync for compound ops).
+
+### `synchronized` vs `volatile`?
+**Short:** `synchronized` = mutual exclusion + visibility (safe for compound ops);
+`volatile` = visibility only (safe for flags, not `count++`).
+
+### What is a race condition / deadlock?
+**Short:** race = result depends on unsynchronized thread timing; deadlock = threads
+each hold a lock the other needs. **Prevention:** atomics/locks; consistent lock
+ordering + timeouts. See [Thread Safety](/docs/concurrency/thread-safety/).
+
+## Spring & Spring Boot
+
+### What is dependency injection and why does it matter?
+**Short:** the container supplies a class's collaborators instead of the class
+creating them — enabling loose coupling and testability. Prefer **constructor
+injection**.
+
+### How does Spring Boot auto-configuration work?
+**Short:** `@EnableAutoConfiguration` loads candidate config classes that apply
+conditionally (`@ConditionalOn...`) based on the classpath and properties; your beans
+take precedence ("back off"). See [Spring Boot](/docs/spring-boot/).
+
+### What happens when a request enters a Spring Boot app?
+**Short:** it passes the servlet **filter chain** (including Spring Security), is
+routed by `DispatcherServlet` to a `@Controller` handler, arguments are bound/
+validated, the service runs (often within a `@Transactional` proxy), and the result
+is serialized to JSON by Jackson.
+
+### What happens inside `@Transactional`?
+**Short:** a proxy opens a transaction, binds a connection to the thread, and
+commits on success / rolls back on `RuntimeException`. **Gotcha:** self-invocation
+bypasses the proxy. See [JPA → Transactions](/docs/spring-data-jpa/).
+
+## Databases & JPA
+
+### What is the N+1 problem and how do you fix it?
+**Short:** loading N parents then lazily hitting an association fires 1+N queries;
+fix with `JOIN FETCH`, `@EntityGraph`, or batch fetching — not blanket EAGER.
+[Deep dive](/docs/spring-data-jpa/n-plus-one/).
+
+### Lazy vs eager loading?
+**Short:** lazy loads an association on first access; eager loads it with the parent.
+Make `@ManyToOne` explicitly lazy to avoid N+1.
+
+### Explain ACID and isolation levels.
+**Short:** Atomicity, Consistency, Isolation, Durability. Isolation levels trade
+concurrency for preventing dirty/non-repeatable/phantom reads. See
+[SQL & Databases](/docs/database/).
+
+### Optimistic vs pessimistic locking?
+**Short:** optimistic uses a `@Version` column and fails on concurrent change (best
+for low contention); pessimistic locks the row (`SELECT ... FOR UPDATE`) for hot rows.
+
+## System Design & Backend
+
+### How does JWT authentication work?
+**Short:** server verifies credentials and returns a signed token; client sends it as
+`Bearer`; a filter validates signature/expiry and sets the security context — no
+server session. [Detail](/docs/security/jwt-authentication/).
+
+### How does Kafka guarantee ordering?
+**Short:** ordering is guaranteed **within a partition**; the partition key routes all
+records for a key (e.g. an `orderId`) to the same partition. No global order across
+partitions.
+
+### How do you keep payments consistent across services?
+**Short:** idempotency keys + the **saga** pattern for coordination + the **outbox**
+pattern so the DB write and event publish are atomic. See [Patterns](/docs/patterns/).
+
+### Cache-aside vs write-through?
+**Short:** cache-aside populates on read miss (most common); write-through writes to
+cache and DB together. Always set a TTL and evict on write.
+
+## Coding questions
+
+These come up in Java coding rounds — practice writing them cleanly:
+
+- Reverse a string / check a palindrome.
+- Two-sum with a `HashMap` (O(n)).
+- First non-repeating character (`LinkedHashMap`).
+- LRU cache (`LinkedHashMap` with access order, or a map + doubly-linked list).
+- Group anagrams (`groupingBy` on a sorted-char key).
+- Merge intervals; sliding-window maximum.
+- Producer-consumer with a `BlockingQueue`.
+- Thread-safe counter three ways (synchronized, `AtomicInteger`, `LongAdder`).
+
+<Backend>
+Bring the three [projects](/docs/projects/) to the interview. "Tell me about
+something you built" is the most common opener, and a real, explainable backend beats
+a list of buzzwords every time.
+</Backend>
+
+## Final checklist
+
+### 🔴 Must Know
+- equals/hashCode, String immutability, exceptions.
+- HashMap internals, `synchronized`/`volatile`, race conditions.
+- DI, auto-configuration, `@Transactional`, N+1.
+- ACID/isolation, JWT, Kafka ordering, caching.
+
+### 🟡 Good to Know
+- Locking strategies, saga/outbox, resilience patterns.
+- Delivery semantics, idempotency.
+
+### 🟢 Nice to Know
+- CQRS, virtual threads, GC tuning, consistent hashing.

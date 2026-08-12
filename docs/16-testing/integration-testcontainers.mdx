@@ -1,0 +1,227 @@
+---
+id: integration-testcontainers
+title: Integration Testing & Testcontainers
+sidebar_label: Integration & Testcontainers
+sidebar_position: 2
+description: Spring Boot test slices (@WebMvcTest, @DataJpaTest), full @SpringBootTest, MockMvc, and production-accurate integration tests with Testcontainers.
+---
+
+# Integration Testing & Testcontainers
+
+Integration tests verify that units work **together** and that the wiring, serialization,
+transactions, and SQL are correct. Spring Boot's test **slices** load just enough context
+to stay fast; Testcontainers gives you a real database.
+
+<ProgressTracker id="integration-testcontainers" />
+
+## Table of Contents
+
+- [Slices vs full context](#slices-vs-full-context)
+- [Controller tests with @WebMvcTest + MockMvc](#controller-tests-with-webmvctest--mockmvc)
+- [Repository tests with @DataJpaTest](#repository-tests-with-datajpatest)
+- [Full @SpringBootTest](#full-springboottest)
+- [Testcontainers: a real database](#testcontainers-a-real-database)
+- [Testing transactions & rollback](#testing-transactions--rollback)
+- [Common mistakes](#common-mistakes)
+- [Interview questions](#interview-questions)
+- [Things You Should Know](#things-you-should-know)
+
+## Slices vs full context
+
+Loading the whole application for every test is slow. Spring Boot **slice** annotations
+load only the layer you're testing.
+
+| Annotation | Loads | Use for |
+| --- | --- | --- |
+| `@WebMvcTest` | Web layer (controllers, filters, Jackson) | Controller request/response/validation |
+| `@DataJpaTest` | JPA layer (repositories, entities, DataSource) | Repository queries |
+| `@JsonTest` | Jackson serialization | DTO (de)serialization |
+| `@SpringBootTest` | The **whole** application context | End-to-end wiring |
+
+<Important>
+Reach for the **narrowest** slice that covers what you're testing. `@WebMvcTest` +
+`@MockBean` for controllers, `@DataJpaTest` for repositories, `@SpringBootTest` only for
+true end-to-end flows. Narrow slices are faster and pinpoint failures better.
+</Important>
+
+## Controller tests with @WebMvcTest + MockMvc
+
+Test routing, status codes, JSON, and validation without a server or database — the
+service is mocked with `@MockBean`.
+
+```java
+@WebMvcTest(UserController.class)
+class UserControllerTest {
+
+    @Autowired MockMvc mvc;
+    @MockBean UserService service;   // real controller, mocked service
+
+    @Test
+    void returns201OnCreate() throws Exception {
+        when(service.create(any())).thenReturn(new UserResponse(1L, "Ann", "a@x.com"));
+
+        mvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"name":"Ann","email":"a@x.com"}
+                    """))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.id").value(1))
+           .andExpect(jsonPath("$.name").value("Ann"));
+    }
+
+    @Test
+    void rejectsInvalidBodyWith400() throws Exception {
+        mvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"\",\"email\":\"bad\"}"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+}
+```
+
+## Repository tests with @DataJpaTest
+
+`@DataJpaTest` configures JPA, wraps each test in a **rolled-back transaction**, and (by
+default) points at an in-memory database.
+
+```java
+@DataJpaTest
+class UserRepositoryTest {
+
+    @Autowired UserRepository repo;
+    @Autowired TestEntityManager em;   // helper to persist test fixtures
+
+    @Test
+    void findsByEmail() {
+        em.persistAndFlush(new User(null, "Ann", "a@x.com"));
+        assertThat(repo.findByEmail("a@x.com")).isPresent();
+    }
+}
+```
+
+## Full @SpringBootTest
+
+Loads the entire context; combine with `MockMvc` (or a real `TestRestTemplate`/
+`WebTestClient`) for end-to-end tests.
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+class OrderFlowTest {
+    @Autowired MockMvc mvc;
+
+    @Test
+    void placeAndFetchOrder() throws Exception {
+        // POST an order, then GET it back — exercises the whole stack
+    }
+}
+```
+
+## Testcontainers: a real database
+
+<Backend>
+In-memory H2 is fast but **lies**: it doesn't behave like Postgres for types, native
+SQL, JSON columns, sequences, or locking. **Testcontainers** spins up a real Postgres in
+Docker for the test, so what passes in CI matches production.
+</Backend>
+
+```java
+@SpringBootTest
+@Testcontainers
+class OrderIntegrationTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres =
+        new PostgreSQLContainer<>("postgres:16-alpine");   // one container for the class
+
+    @DynamicPropertySource
+    static void datasource(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
+
+    @Autowired OrderService orderService;
+
+    @Test
+    void persistsAgainstRealPostgres() {
+        Long id = orderService.create(sampleOrder());
+        assertThat(orderService.get(id)).isNotNull();   // real DB, real SQL, real transaction
+    }
+}
+```
+
+<Tip>
+Make the container **`static`** so it's shared across all tests in the class (started
+once) instead of restarted per test. In Spring Boot 3.1+, `@ServiceConnection` on the
+container replaces the manual `@DynamicPropertySource` wiring.
+</Tip>
+
+## Testing transactions & rollback
+
+```java
+@SpringBootTest
+class TransferServiceTest {
+    @Autowired TransferService service;
+    @Autowired AccountRepository accounts;
+
+    @Test
+    void rollsBackWhenSecondUpdateFails() {
+        assertThatThrownBy(() -> service.transferFailing(from, to, amount))
+            .isInstanceOf(RuntimeException.class);
+        // the whole @Transactional method rolled back — debit was undone
+        assertThat(accounts.findById(from).getBalance()).isEqualByComparingTo(original);
+    }
+}
+```
+
+<Warning>
+`@DataJpaTest` and `@Transactional` tests roll back automatically, which is convenient but
+can **hide** issues that only appear on real commit/flush. When testing transactional
+behavior explicitly, avoid the test-managed rollback (e.g. `@Commit` or a separate
+transaction) so you observe the true committed state.
+</Warning>
+
+## Common mistakes
+
+<Warning>
+- `@SpringBootTest` for everything (slow) instead of narrow slices.
+- Testing against H2 when production is Postgres (behavior gaps).
+- Restarting a Testcontainer per test (make it `static`).
+- Relying on rollback semantics that mask flush/commit bugs.
+- Order-dependent tests sharing mutable state.
+</Warning>
+
+## Interview questions
+
+**Q: `@WebMvcTest` vs `@DataJpaTest` vs `@SpringBootTest`?**
+Web slice (controllers + MockMvc), JPA slice (repositories + rolled-back tx), and the
+full context respectively. Prefer the narrowest slice.
+
+**Q: Why Testcontainers over H2?**
+H2 doesn't replicate a real database's SQL dialect, types, and locking; Testcontainers
+runs the actual DB in Docker for production-accurate tests.
+
+**Q: What does MockMvc test?**
+The web layer — routing, status codes, headers, JSON, and validation — without starting a
+server.
+
+**Q: How do you test rollback?**
+Trigger a failure inside a `@Transactional` method and assert the state was not committed
+(avoiding the test's own auto-rollback).
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Slice tests (`@WebMvcTest`, `@DataJpaTest`) vs full `@SpringBootTest`.
+- MockMvc for controllers; `@MockBean` to mock services in a slice.
+- Testcontainers for real-DB integration tests.
+
+### 🟡 Good to Know
+- `TestEntityManager`; `@DynamicPropertySource`/`@ServiceConnection`.
+- Auto-rollback in `@DataJpaTest` and its blind spots.
+
+### 🟢 Nice to Know
+- `WebTestClient`/`TestRestTemplate` for real HTTP; reusing containers across the suite.

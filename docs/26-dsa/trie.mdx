@@ -1,0 +1,194 @@
+---
+id: trie
+title: "10. Trie"
+sidebar_label: 10. Trie
+sidebar_position: 11
+description: The prefix tree — insert/search/startsWith, wildcard search, and word-search-on-a-grid, with full Java implementations.
+---
+
+# 10. Trie
+
+A **trie** (prefix tree) stores strings by shared prefixes, giving O(L) insert/search
+(L = word length) independent of how many words are stored. It's the go-to for
+autocomplete, prefix queries, and word puzzles.
+
+<ProgressTracker id="dsa-trie" />
+
+## Table of Contents
+
+- [Structure](#structure)
+- [Implement Trie](#implement-trie)
+- [Wildcard search](#wildcard-search)
+- [Word Search II (trie + DFS)](#word-search-ii-trie--dfs)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## Structure
+
+Each node has up to 26 children (one per lowercase letter) and a flag marking the end of
+a word.
+
+```text
+             root
+            /    \
+          (c)    (d)
+           |
+          (a)
+           |
+          (t)  ← isEnd = true  ("cat")
+```
+
+## Implement Trie
+
+### Implement Trie — [LeetCode 208](https://leetcode.com/problems/implement-trie-prefix-tree/)
+
+```java
+class Trie {
+    private static class Node {
+        Node[] children = new Node[26];
+        boolean isEnd;
+    }
+    private final Node root = new Node();
+
+    public void insert(String word) {                 // O(L)
+        Node node = root;
+        for (char c : word.toCharArray()) {
+            int i = c - 'a';
+            if (node.children[i] == null) node.children[i] = new Node();
+            node = node.children[i];
+        }
+        node.isEnd = true;
+    }
+
+    public boolean search(String word) {              // full word match
+        Node node = find(word);
+        return node != null && node.isEnd;
+    }
+
+    public boolean startsWith(String prefix) {        // any word with this prefix
+        return find(prefix) != null;
+    }
+
+    private Node find(String s) {
+        Node node = root;
+        for (char c : s.toCharArray()) {
+            int i = c - 'a';
+            if (node.children[i] == null) return null;
+            node = node.children[i];
+        }
+        return node;
+    }
+}
+```
+
+<Important>
+`search` vs `startsWith` differ only in the final check: `search` requires
+`node.isEnd`, while `startsWith` just requires the path to exist. Both are O(L),
+independent of the number of stored words — that's the trie's superpower over a
+`HashSet` for prefix queries.
+</Important>
+
+## Wildcard search
+
+### Design Add and Search Words — [LeetCode 211](https://leetcode.com/problems/design-add-and-search-words-data-structure/)
+
+```java
+// '.' matches any letter -> DFS that branches on wildcards
+class WordDictionary {
+    private static class Node { Node[] ch = new Node[26]; boolean end; }
+    private final Node root = new Node();
+
+    public void addWord(String w) {
+        Node n = root;
+        for (char c : w.toCharArray()) {
+            int i = c - 'a';
+            if (n.ch[i] == null) n.ch[i] = new Node();
+            n = n.ch[i];
+        }
+        n.end = true;
+    }
+
+    public boolean search(String w) { return dfs(w, 0, root); }
+
+    private boolean dfs(String w, int k, Node node) {
+        if (node == null) return false;
+        if (k == w.length()) return node.end;
+        char c = w.charAt(k);
+        if (c == '.') {                              // try every child
+            for (Node next : node.ch) if (dfs(w, k + 1, next)) return true;
+            return false;
+        }
+        return dfs(w, k + 1, node.ch[c - 'a']);
+    }
+}
+```
+
+## Word Search II (trie + DFS)
+
+### Word Search II — [LeetCode 212](https://leetcode.com/problems/word-search-ii/)
+
+Build a trie of all target words, then DFS the grid once, walking the trie in lockstep —
+far faster than searching each word separately.
+
+```java
+// Build trie of words, DFS grid pruning by trie edges
+List<String> findWords(char[][] board, String[] words) {
+    TrieNode root = buildTrie(words);
+    List<String> res = new ArrayList<>();
+    for (int r = 0; r < board.length; r++)
+        for (int c = 0; c < board[0].length; c++)
+            dfs(board, r, c, root, res);
+    return res;
+}
+void dfs(char[][] b, int r, int c, TrieNode node, List<String> res) {
+    if (r < 0 || c < 0 || r >= b.length || c >= b[0].length) return;
+    char ch = b[r][c];
+    if (ch == '#' || node.ch[ch - 'a'] == null) return;   // pruned by trie
+    node = node.ch[ch - 'a'];
+    if (node.word != null) { res.add(node.word); node.word = null; }  // found, dedupe
+    b[r][c] = '#';
+    dfs(b, r+1, c, node, res); dfs(b, r-1, c, node, res);
+    dfs(b, r, c+1, node, res); dfs(b, r, c-1, node, res);
+    b[r][c] = ch;                                         // undo
+}
+class TrieNode { TrieNode[] ch = new TrieNode[26]; String word; }
+TrieNode buildTrie(String[] words) {
+    TrieNode root = new TrieNode();
+    for (String w : words) {
+        TrieNode n = root;
+        for (char c : w.toCharArray()) {
+            if (n.ch[c - 'a'] == null) n.ch[c - 'a'] = new TrieNode();
+            n = n.ch[c - 'a'];
+        }
+        n.word = w;
+    }
+    return root;
+}
+```
+
+<Tip>
+Storing the full `word` on the terminal trie node (instead of an `isEnd` flag) lets you
+add it to the result immediately and set it to `null` to avoid duplicates — a clean
+Word Search II trick.
+</Tip>
+
+## Problem checklist
+
+- [Implement Trie](https://leetcode.com/problems/implement-trie-prefix-tree/)
+- [Design Add and Search Words](https://leetcode.com/problems/design-add-and-search-words-data-structure/)
+- [Word Search II](https://leetcode.com/problems/word-search-ii/)
+- [Replace Words](https://leetcode.com/problems/replace-words/)
+- [Longest Word in Dictionary](https://leetcode.com/problems/longest-word-in-dictionary/)
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Trie node = `children[26]` + `isEnd`; O(L) insert/search/startsWith.
+- `search` (needs isEnd) vs `startsWith` (path exists).
+
+### 🟡 Good to Know
+- Wildcard search via DFS branching on `.`.
+- Trie + grid DFS for Word Search II (store word at terminal node).
+
+### 🟢 Nice to Know
+- Compressed trie (radix tree); bitwise trie for XOR problems ([Advanced](/docs/dsa/advanced-data-structures/)).

@@ -1,0 +1,265 @@
+---
+id: level-1-beginner
+title: "Level 1 — Beginner (Q1–57)"
+sidebar_label: 🟢 Level 1 — Beginner
+sidebar_position: 1
+description: Beginner Java backend interview questions (0–2 years) — core Java, OOP, strings, collections, exceptions, Spring Boot and REST basics, each with a concise answer.
+---
+
+# Level 1 — Beginner (Q1–57)
+
+For **0–2 years** experience. Master these cold — they're the baseline every interview
+assumes. Each answer is a crisp headline; follow the links for the full explanation.
+
+<ProgressTracker id="iq-level-1" />
+
+## Core Java basics (1–9)
+
+**1. What are JDK, JRE, and JVM? How do they differ?**
+JVM executes bytecode; JRE = JVM + standard libraries (run only); JDK = JRE + dev tools
+like `javac` (develop + run). See [JDK/JRE/JVM](/docs/java-fundamentals/jdk-jre-jvm/).
+
+**2. Main features of Java? Explain OOP principles.**
+Platform-independent (bytecode + JVM), object-oriented, garbage-collected, strongly
+typed, multithreaded. OOP pillars: encapsulation, inheritance, polymorphism, abstraction
+([OOP](/docs/oop/)).
+
+**3. List all primitive types and their sizes.**
+`byte`(8), `short`(16), `int`(32), `long`(64), `float`(32), `double`(64), `char`(16),
+`boolean`(JVM-dependent). See [Types & Variables](/docs/java-fundamentals/types-and-variables/).
+
+**4. What is autoboxing and unboxing?**
+Automatic conversion between a primitive and its wrapper: `Integer i = 5` (box),
+`int x = i` (unbox). Beware `NullPointerException` unboxing a null wrapper.
+
+**5. Explain access modifiers.**
+`private` (class only), default/package-private (same package), `protected` (package +
+subclasses), `public` (everywhere). See [access modifiers](/docs/java-fundamentals/keywords/#packages--access-modifiers).
+
+**6. What are packages? Why use them?**
+Namespaces that group related classes, prevent name clashes, and control access. Map to
+folder structure (`com.shop.order`).
+
+**7. Explain `static`. Static variables and methods?**
+`static` binds a member to the class, not an instance — one shared copy, usable without
+an object. See [static/final/this/super](/docs/java-fundamentals/keywords/).
+
+**8. What are constructors? What types exist?**
+Special methods that initialize a new object. Types: default (no-arg, compiler-supplied),
+no-arg (explicit), and parameterized. Constructors can be overloaded.
+
+**9. Can we use static methods inside a constructor?**
+Yes — a constructor can call static methods freely (they don't need an instance). It just
+can't be overridden and isn't polymorphic.
+
+## Object-Oriented Programming (10–15)
+
+**10. What is inheritance? Types with examples.**
+A subclass reuses/extends a parent (IS-A). Java supports single, multilevel, and
+hierarchical inheritance of classes; multiple inheritance of *type* via interfaces (not
+classes). See [Inheritance & Polymorphism](/docs/oop/inheritance-and-polymorphism/).
+
+**11. What is polymorphism? Real-world example.**
+One reference type, many runtime behaviors. `PaymentProcessor.charge()` runs the card or
+UPI implementation depending on the actual object (dynamic dispatch).
+
+**12. Encapsulation vs Abstraction.**
+Encapsulation hides *state* behind methods (the how of data); abstraction hides
+*implementation* behind a contract (the what). Encapsulation = private fields + getters;
+abstraction = interfaces/abstract classes.
+
+**13. Method overloading vs overriding.**
+Overloading = same name, different params, resolved at compile time. Overriding = same
+signature in a subclass, resolved at runtime. See [details](/docs/oop/inheritance-and-polymorphism/#method-overloading).
+
+**14. Interface vs abstract class — when to use which?**
+Interface = a capability/contract, multiple per class, no state. Abstract class = a shared
+base (IS-A) with state and partial implementation, one per class. Prefer interfaces. See
+[Interfaces & Abstraction](/docs/oop/interfaces-and-abstraction/).
+
+**15. What is a marker interface?**
+An empty interface that tags a class for special treatment (`Serializable`, `Cloneable`).
+Modern code often prefers annotations for the same purpose.
+
+## String handling (16–20)
+
+**16. String vs StringBuilder vs StringBuffer.**
+`String` immutable; `StringBuilder` mutable, not thread-safe (fast); `StringBuffer`
+mutable, synchronized (slower). See [Strings](/docs/java-fundamentals/strings/).
+
+**17. String literal vs `new String()` — memory implications.**
+A literal is interned in the string pool (shared); `new String("x")` forces a distinct
+heap object plus the pooled literal. Up to two objects.
+
+**18. What is the String Pool? How does it work?**
+A heap region caching string literals so identical literals share one object; `intern()`
+returns the pooled instance.
+
+**19. Advantages of the String Pool.**
+Saves memory by sharing immutable literals and speeds equality checks for interned
+strings.
+
+**20. Why is String immutable? Benefits?**
+Thread safety, safe pooling/caching, safe as `HashMap` keys (stable hash), and security.
+
+## Basic Collections (21–29)
+
+**21. What is the Collections framework?**
+A unified set of interfaces (`List`, `Set`, `Map`, `Queue`) and implementations for
+storing and manipulating groups of objects. See [Collections](/docs/collections/).
+
+**22. Array vs ArrayList.**
+Array is fixed-size, can hold primitives, `.length`. `ArrayList` is resizable, objects
+only, rich API. Use array for fixed numeric data, `ArrayList` otherwise.
+
+**23. ArrayList vs LinkedList — performance.**
+`ArrayList` O(1) random access, O(n) middle insert; `LinkedList` O(1) end insert, O(n)
+access. `ArrayList` wins in practice. See [details](/docs/collections/list-internals/).
+
+**24. HashMap basics and common operations.**
+Key→value store, average O(1) `put`/`get`/`remove`; one null key allowed; unordered. See
+[HashMap Internals](/docs/collections/hashmap-internals/).
+
+**25. HashSet vs TreeSet.**
+`HashSet` unordered, O(1); `TreeSet` sorted, O(log n), no nulls. Use `TreeSet` when you
+need ordering or range queries.
+
+**26. What is an Iterator?**
+An object to traverse a collection (`hasNext`/`next`/`remove`). `iterator.remove()` is the
+safe way to delete during iteration.
+
+**27. List vs Set.**
+`List` ordered, allows duplicates, index access. `Set` no duplicates, usually unordered.
+
+**28. Array vs List — when to use each?**
+Array for fixed size / primitives / performance-critical numeric work; `List` for dynamic
+size and high-level APIs.
+
+**29. Set vs List — use cases.**
+`Set` for uniqueness/membership; `List` for ordered sequences with duplicates and index
+access.
+
+## Exception handling (30–39)
+
+**30. What is an exception? Types?**
+An event signaling an abnormal condition. Hierarchy: `Throwable` → `Error` / `Exception`
+→ `RuntimeException` (unchecked). See [Exception Handling](/docs/exceptions/).
+
+**31. Checked vs unchecked exceptions.**
+Checked (compiler forces handling, e.g. `IOException`) vs unchecked (`RuntimeException`,
+programming errors). See [checked vs unchecked](/docs/exceptions/#checked-vs-unchecked).
+
+**32. try-catch-finally execution flow.**
+`try` runs; a matching `catch` handles a thrown exception; `finally` always runs
+(cleanup), even on return — except `System.exit`/JVM crash.
+
+**33. Can we use `try` without `catch`?**
+Yes — `try-finally` (no catch) or `try-with-resources`. The exception propagates while
+`finally`/`close()` still runs.
+
+**34. `throw` vs `throws`.**
+`throw` raises an exception instance; `throws` declares that a method may propagate a
+checked exception.
+
+**35. How to create user-defined exceptions?**
+Extend `RuntimeException` (unchecked) or `Exception` (checked); add a constructor passing
+`message` (and `cause`) to `super`.
+
+**36. How to handle user-defined exceptions properly?**
+Catch specifically, log with context, preserve the cause when wrapping, and map to a
+meaningful response (e.g. HTTP status via `@RestControllerAdvice`).
+
+**37. What causes NullPointerException? How to prevent?**
+Dereferencing null. Prevent with `Optional`, `Objects.requireNonNull`, null checks, and
+avoiding null returns (return empty collections).
+
+**38. What is ClassCastException?**
+Casting an object to an incompatible type at runtime. Guard with `instanceof` (pattern
+matching).
+
+**39. Error vs Exception.**
+`Error` = serious JVM problems you shouldn't catch (`OutOfMemoryError`); `Exception` =
+recoverable application problems.
+
+## Control structures & operators (40–41)
+
+**40. `break` vs `continue`.**
+`break` exits the loop entirely; `continue` skips to the next iteration. Labeled forms
+work on nested loops.
+
+**41. `==` vs `.equals()`.**
+`==` compares references (or primitive values); `.equals()` compares logical equality.
+Always use `.equals()` for objects/wrappers.
+
+## Spring Boot basics (42–51)
+
+**42. What is Spring Boot? Why created?**
+An opinionated layer over Spring that removes boilerplate with auto-configuration,
+starters, and an embedded server. See [Spring Boot](/docs/spring-boot/).
+
+**43. Key advantages of Spring Boot.**
+Auto-configuration, starter dependencies, embedded server (`java -jar`), production
+features (Actuator), and fast setup.
+
+**44. Explain `@SpringBootApplication`.**
+A composite of `@Configuration` + `@EnableAutoConfiguration` + `@ComponentScan` — bootstraps
+the context and scans the package.
+
+**45. `@Component` vs `@Service` vs `@Repository`.**
+All are scanned stereotypes; `@Service` marks business logic, `@Repository` marks data
+access (+ exception translation), `@Component` is generic. See [Spring Core](/docs/spring-core/#declaring-beans).
+
+**46. What is Dependency Injection? Why important?**
+The container supplies a class's collaborators instead of it constructing them — enabling
+loose coupling and testability. See [DI](/docs/spring-core/dependency-injection/).
+
+**47. How does `@Autowired` work?**
+It tells Spring to inject a matching bean by type (then qualifier/primary). Not needed on
+a single constructor since Spring 4.3.
+
+**48. What are Spring Boot starters? Examples.**
+Curated dependency bundles: `spring-boot-starter-web`, `-data-jpa`, `-security`,
+`-validation`, `-test`.
+
+**49. What is `application.properties` used for?**
+Externalized configuration (ports, datasource, logging). See
+[Configuration & Profiles](/docs/spring-boot/configuration-and-profiles/).
+
+**50. Spring vs Spring Boot.**
+Spring is the framework (you configure everything); Spring Boot adds opinionated
+auto-config, starters, and an embedded server on top.
+
+**51. What is the IoC container?**
+The `ApplicationContext` that creates, wires, and manages beans — Inversion of Control
+means the framework owns object creation.
+
+## REST API basics (52–57)
+
+**52. What is HTTP? Common methods.**
+The request/response protocol of the web. Methods: GET, POST, PUT, PATCH, DELETE. See
+[REST API](/docs/rest-api/).
+
+**53. Explain 200, 404, 500.**
+200 OK (success), 404 Not Found (missing resource), 500 Internal Server Error (server
+bug). See the [HTTP cheat sheet](/docs/cheat-sheets/http-rest/).
+
+**54. What is a REST API? What makes it RESTful?**
+An API over HTTP treating data as resources (URIs + verbs), stateless, with a uniform
+interface and standard status codes.
+
+**55. What is JSON? Why popular?**
+Lightweight, human-readable, language-independent data format that maps naturally to
+objects — the default REST payload.
+
+**56. `@RestController` vs `@Controller`.**
+`@RestController` = `@Controller` + `@ResponseBody`, so returns are serialized as JSON.
+`@Controller` returns view names (MVC). See [ResponseEntity](/docs/rest-api/response-entity/#responseentity-vs-responsestatus-vs-responsebody).
+
+**57. Steps to create a REST API in Spring Boot.**
+Add `starter-web`, create a `@RestController` with mapped methods, define DTOs, add a
+service + repository, and handle errors with `@RestControllerAdvice`. See a
+[full slice](/docs/spring-boot/#a-complete-slice).
+
+---
+
+Next: [Level 2 — Intermediate (Q58–146)](/docs/interview-preparation/level-2-intermediate/)

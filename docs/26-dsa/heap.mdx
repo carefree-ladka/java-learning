@@ -1,0 +1,163 @@
+---
+id: heap
+title: "9. Heap / Priority Queue"
+sidebar_label: 9. Heap / Priority Queue
+sidebar_position: 10
+description: Heaps for top-K, kth largest, two-heaps (median), merge-K, and scheduling — with Java PriorityQueue code.
+---
+
+# 9. Heap / Priority Queue
+
+A heap gives you the min or max in O(1) and insert/remove in O(log n). Reach for it
+whenever a problem says **"top K", "kth largest/smallest", "median"**, or **"merge
+sorted"**.
+
+<ProgressTracker id="dsa-heap" />
+
+## Table of Contents
+
+- [Java PriorityQueue](#java-priorityqueue)
+- [Pattern: Top K / Kth largest](#pattern-top-k--kth-largest)
+- [Pattern: K closest](#pattern-k-closest)
+- [Pattern: two heaps (running median)](#pattern-two-heaps-running-median)
+- [Pattern: scheduling](#pattern-scheduling)
+- [Problem checklist](#problem-checklist)
+- [Things You Should Know](#things-you-should-know)
+
+## Java PriorityQueue
+
+```java
+PriorityQueue<Integer> minHeap = new PriorityQueue<>();                        // smallest on top
+PriorityQueue<Integer> maxHeap = new PriorityQueue<>(Comparator.reverseOrder()); // largest on top
+minHeap.offer(x);   // insert  O(log n)
+minHeap.peek();     // view top O(1)
+minHeap.poll();     // remove top O(log n)
+```
+
+## Pattern: Top K / Kth largest
+
+<Important>
+For "kth **largest**", keep a **min-heap of size k**: the top is always the kth largest,
+and you evict the smallest when the heap exceeds k. This is O(n log k) time and O(k)
+space — better than sorting the whole array (O(n log n)).
+</Important>
+
+### Kth Largest Element — [LeetCode 215](https://leetcode.com/problems/kth-largest-element-in-an-array/)
+
+```java
+// OPTIMAL — O(n log k): min-heap of size k
+int findKthLargest(int[] nums, int k) {
+    PriorityQueue<Integer> heap = new PriorityQueue<>();   // min-heap
+    for (int x : nums) {
+        heap.offer(x);
+        if (heap.size() > k) heap.poll();   // drop the smallest, keep top k
+    }
+    return heap.peek();                     // kth largest
+}
+```
+
+### Top K Frequent Elements — [LeetCode 347](https://leetcode.com/problems/top-k-frequent-elements/)
+
+```java
+// O(n log k): heap ordered by frequency
+int[] topKFrequent(int[] nums, int k) {
+    Map<Integer, Integer> freq = new HashMap<>();
+    for (int x : nums) freq.merge(x, 1, Integer::sum);
+    PriorityQueue<Integer> heap = new PriorityQueue<>((a, b) -> freq.get(a) - freq.get(b));
+    for (int key : freq.keySet()) {
+        heap.offer(key);
+        if (heap.size() > k) heap.poll();
+    }
+    int[] res = new int[k];
+    for (int i = k - 1; i >= 0; i--) res[i] = heap.poll();
+    return res;
+}
+```
+
+## Pattern: K closest
+
+### K Closest Points to Origin — [LeetCode 973](https://leetcode.com/problems/k-closest-points-to-origin/)
+
+```java
+// O(n log k): max-heap of size k by squared distance
+int[][] kClosest(int[][] points, int k) {
+    PriorityQueue<int[]> heap = new PriorityQueue<>(
+        (a, b) -> (b[0]*b[0] + b[1]*b[1]) - (a[0]*a[0] + a[1]*a[1]));  // max-heap
+    for (int[] p : points) {
+        heap.offer(p);
+        if (heap.size() > k) heap.poll();   // drop the farthest
+    }
+    return heap.toArray(new int[0][]);
+}
+```
+
+## Pattern: two heaps (running median)
+
+<Important>
+To track the **median of a stream**, keep two heaps: a **max-heap** for the lower half
+and a **min-heap** for the upper half, balanced so their sizes differ by at most one.
+The median is the top of the larger heap (or the average of both tops).
+</Important>
+
+### Find Median from Data Stream — [LeetCode 295](https://leetcode.com/problems/find-median-from-data-stream/)
+
+```java
+class MedianFinder {
+    private final PriorityQueue<Integer> low  = new PriorityQueue<>(Comparator.reverseOrder()); // max-heap
+    private final PriorityQueue<Integer> high = new PriorityQueue<>();                            // min-heap
+
+    public void addNum(int num) {
+        low.offer(num);
+        high.offer(low.poll());                       // balance value across
+        if (high.size() > low.size()) low.offer(high.poll());  // rebalance sizes
+    }
+    public double findMedian() {
+        return low.size() > high.size() ? low.peek()
+                                        : (low.peek() + high.peek()) / 2.0;
+    }
+}
+```
+
+## Pattern: scheduling
+
+### Task Scheduler — [LeetCode 621](https://leetcode.com/problems/task-scheduler/)
+
+Greedy + counting: schedule the most frequent task first to spread out cooldowns. A heap
+of remaining counts is one clean implementation; the closed-form uses the max frequency.
+
+```java
+// O(n): formula based on the most frequent task and cooldown n
+int leastInterval(char[] tasks, int n) {
+    int[] freq = new int[26];
+    for (char t : tasks) freq[t - 'A']++;
+    int max = Arrays.stream(freq).max().getAsInt();
+    int maxCount = (int) Arrays.stream(freq).filter(f -> f == max).count();
+    int slots = (max - 1) * (n + 1) + maxCount;
+    return Math.max(tasks.length, slots);
+}
+```
+
+## Problem checklist
+
+- [Kth Largest Element](https://leetcode.com/problems/kth-largest-element-in-an-array/)
+- [Top K Frequent Elements](https://leetcode.com/problems/top-k-frequent-elements/)
+- [K Closest Points to Origin](https://leetcode.com/problems/k-closest-points-to-origin/)
+- [Find Median from Data Stream](https://leetcode.com/problems/find-median-from-data-stream/) · two heaps
+- [Merge K Sorted Lists](https://leetcode.com/problems/merge-k-sorted-lists/) · heap
+- [Task Scheduler](https://leetcode.com/problems/task-scheduler/) · greedy + heap
+- [Kth Largest Element in a Stream](https://leetcode.com/problems/kth-largest-element-in-a-stream/)
+
+## Things You Should Know
+
+### 🔴 Must Know
+- Min-heap of size k for kth largest / top K (O(n log k)).
+- Max-heap via `Comparator.reverseOrder()`.
+- Two heaps for a running median.
+
+### 🟡 Good to Know
+- Heap for merge-K sorted lists/streams.
+- Bucket sort as an O(n) alternative to top-K heaps.
+
+### 🟢 Nice to Know
+- Quickselect for kth largest in O(n) average.
+- `PriorityQueue` isn't sorted on iteration — only the head is ordered.
