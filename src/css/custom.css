@@ -1,107 +1,312 @@
 /**
  * Global theme for Java Backend Mastery.
- * Built on Infima. Developer-focused, high-contrast, dark-mode first.
+ * Built on Infima. Modern, developer-focused, high-contrast, dark-mode first.
+ * Typography: Inter (UI/text) + JetBrains Mono (code).
  */
 
+/* ==========================================================================
+   Design tokens
+   ========================================================================== */
 :root {
-  /* Primary: a confident Java-adjacent blue */
-  --ifm-color-primary: #1d4ed8;
-  --ifm-color-primary-dark: #1a46c2;
-  --ifm-color-primary-darker: #1842b7;
-  --ifm-color-primary-darkest: #143697;
-  --ifm-color-primary-light: #2c5ce0;
-  --ifm-color-primary-lighter: #3a67e2;
-  --ifm-color-primary-lightest: #5c81e8;
+  /* Primary: modern indigo */
+  --ifm-color-primary: #4f46e5;
+  --ifm-color-primary-dark: #4338ca;
+  --ifm-color-primary-darker: #3f34bf;
+  --ifm-color-primary-darkest: #342b9d;
+  --ifm-color-primary-light: #635bf0;
+  --ifm-color-primary-lighter: #7169f2;
+  --ifm-color-primary-lightest: #9b95f6;
 
-  --ifm-code-font-size: 92%;
-  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, SFMono-Regular,
-    'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-  --ifm-heading-font-weight: 700;
+  /* Fonts */
+  --ifm-font-family-base:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --ifm-heading-font-family:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ifm-font-family-monospace:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --ifm-font-size-base: 16.5px;
+  --ifm-line-height-base: 1.7;
+  --ifm-code-font-size: 88%;
+  --ifm-heading-font-weight: 750;
+  --ifm-heading-line-height: 1.2;
   --ifm-navbar-item-padding-horizontal: 0.7rem;
 
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+  /* Rounder, softer surfaces */
+  --ifm-global-radius: 0.6rem;
+  --ifm-card-border-radius: 0.9rem;
+  --ifm-code-border-radius: 0.4rem;
+  --ifm-button-border-radius: 0.6rem;
 
-  --jbm-hero-gradient: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #1d4ed8 100%);
+  /* Light backgrounds: warm-neutral, not stark white */
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #f7f8fc;
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.72);
+  --ifm-footer-background-color: #0b0b14;
+
+  --docusaurus-highlighted-code-line-bg: rgba(79, 70, 229, 0.1);
+
+  /* Elevation */
+  --jbm-shadow-sm:
+    0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --jbm-shadow-md: 0 8px 24px -10px rgba(15, 23, 42, 0.22);
+  --jbm-shadow-lg: 0 24px 60px -20px rgba(15, 23, 42, 0.3);
+
+  /* Signature gradient used by the hero + CTA bands */
+  --jbm-hero-gradient: linear-gradient(
+    135deg,
+    #0b1020 0%,
+    #312e81 42%,
+    #4f46e5 72%,
+    #0ea5e9 115%
+  );
+  --jbm-text-gradient: linear-gradient(120deg, #6366f1, #a855f7 50%, #06b6d4);
+
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
 }
 
-[data-theme='dark'] {
-  --ifm-color-primary: #60a5fa;
-  --ifm-color-primary-dark: #4593f9;
-  --ifm-color-primary-darker: #3789f8;
-  --ifm-color-primary-darkest: #0d6bf4;
-  --ifm-color-primary-light: #7bb5fb;
-  --ifm-color-primary-lighter: #89bffc;
-  --ifm-color-primary-lightest: #b3d5fd;
+[data-theme="dark"] {
+  --ifm-color-primary: #a5b4fc;
+  --ifm-color-primary-dark: #8b97fb;
+  --ifm-color-primary-darker: #7e8cfa;
+  --ifm-color-primary-darkest: #5968f7;
+  --ifm-color-primary-light: #bfccfd;
+  --ifm-color-primary-lighter: #ccd5fe;
+  --ifm-color-primary-lightest: #e6ebff;
 
-  --ifm-background-color: #0b1120;
-  --ifm-background-surface-color: #111827;
-  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.08);
+  /* Near-black with a cool blue cast */
+  --ifm-background-color: #080a12;
+  --ifm-background-surface-color: #10131f;
+  --ifm-navbar-background-color: rgba(10, 12, 20, 0.7);
+  --ifm-footer-background-color: #05060b;
+
+  --ifm-color-emphasis-200: #262a3a;
+  --ifm-color-emphasis-300: #333849;
+
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.16);
+
+  --jbm-shadow-md: 0 10px 30px -12px rgba(0, 0, 0, 0.7);
+  --jbm-shadow-lg: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
 }
 
-/* Slightly tighter, more technical heading scale */
+/* ==========================================================================
+   Base
+   ========================================================================== */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  letter-spacing: -0.003em;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.28);
+}
+
+/* Soft page backdrop in dark mode (subtle radial glow top-center) */
+[data-theme="dark"] body {
+  background-image: radial-gradient(
+    1200px 600px at 50% -200px,
+    rgba(79, 70, 229, 0.12),
+    transparent 70%
+  );
+  background-attachment: fixed;
+}
+
+/* ==========================================================================
+   Headings — tighter, more technical scale
+   ========================================================================== */
+h1,
+h2,
+h3,
+h4,
+.navbar__title {
+  letter-spacing: -0.021em;
+}
+
 .markdown h1 {
-  font-size: 2.1rem;
+  font-size: 2.25rem;
+  font-weight: 800;
 }
 .markdown h2 {
-  font-size: 1.55rem;
+  font-size: 1.6rem;
   border-bottom: 1px solid var(--ifm-color-emphasis-200);
   padding-bottom: 0.3rem;
-  margin-top: 2.2rem;
+  margin-top: 2.4rem;
 }
 .markdown h3 {
-  font-size: 1.2rem;
-  margin-top: 1.6rem;
+  font-size: 1.22rem;
+  margin-top: 1.7rem;
 }
 
-/* Inline code polish */
+/* ==========================================================================
+   Navbar — glassy, blurred, floating feel
+   ========================================================================== */
+.navbar {
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: none;
+}
+
+.navbar__title {
+  font-weight: 800;
+}
+
+.navbar__link {
+  font-weight: 550;
+}
+
+.navbar__link:hover,
+.navbar__link--active {
+  color: var(--ifm-color-primary);
+}
+
+/* "JDK 27" version badge */
+.jbm-version-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  border-radius: 999px;
+  background: var(--jbm-text-gradient);
+  box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.6);
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+.button {
+  font-weight: 650;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+.button--primary {
+  border: none;
+  background: var(--ifm-color-primary);
+}
+.button--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--jbm-shadow-md);
+}
+
+/* ==========================================================================
+   Code
+   ========================================================================== */
 code {
-  border-radius: 5px;
+  border-radius: var(--ifm-code-border-radius);
   border: 1px solid var(--ifm-color-emphasis-200);
+  font-feature-settings: "liga" 0;
 }
 
-/* Tables: full width, zebra striping */
+.theme-code-block,
+div[class^="codeBlockContainer"] {
+  border-radius: 0.8rem !important;
+  box-shadow: var(--jbm-shadow-sm);
+}
+
+pre code {
+  border: none;
+}
+
+/* ==========================================================================
+   Tables — full width, zebra striping, rounded
+   ========================================================================== */
 .markdown table {
   display: table;
   width: 100%;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 .markdown table thead tr {
   background: var(--ifm-color-emphasis-100);
+}
+.markdown table th {
+  font-weight: 700;
 }
 .markdown table tr:nth-child(2n) {
   background: var(--ifm-color-emphasis-100);
 }
 
-/* Navbar branding weight */
-.navbar__title {
-  font-weight: 800;
-  letter-spacing: -0.01em;
+/* ==========================================================================
+   Links in prose
+   ========================================================================== */
+.markdown a {
+  font-weight: 550;
+  text-underline-offset: 2px;
 }
 
-/* Cards used on landing + category index pages */
+/* ==========================================================================
+   Sidebar + TOC polish
+   ========================================================================== */
+.menu__link {
+  border-radius: 0.5rem;
+  font-size: 0.92rem;
+}
+.menu__link--active {
+  font-weight: 650;
+}
+.table-of-contents__link--active {
+  font-weight: 650;
+}
+
+/* ==========================================================================
+   Cards used on landing + category index pages
+   ========================================================================== */
 .jbm-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
-  margin: 1.5rem 0;
+  gap: 1.1rem;
+  margin: 1.6rem 0;
 }
 
 .jbm-card {
   display: block;
+  position: relative;
   border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: 12px;
-  padding: 1.2rem;
+  border-radius: var(--ifm-card-border-radius);
+  padding: 1.3rem;
   background: var(--ifm-background-surface-color);
-  transition: transform 0.15s ease, border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
   text-decoration: none !important;
   color: inherit;
   height: 100%;
+  overflow: hidden;
+}
+
+.jbm-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--jbm-text-gradient);
+  opacity: 0;
+  transition: opacity 0.16s ease;
 }
 
 .jbm-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   border-color: var(--ifm-color-primary);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--jbm-shadow-md);
+}
+.jbm-card:hover::before {
+  opacity: 1;
 }
 
 .jbm-card h3 {
@@ -116,14 +321,37 @@ code {
 }
 
 .jbm-card__icon {
-  font-size: 1.6rem;
+  font-size: 1.7rem;
 }
 
-/* "Things You Should Know" tier badges look good with default lists;
-   emphasize the emoji headings */
+/* ==========================================================================
+   "Things You Should Know" tier headings
+   ========================================================================== */
 .markdown h3#-must-know,
 .markdown h3#-good-to-know,
 .markdown h3#-nice-to-know {
   border-left: 4px solid var(--ifm-color-primary);
   padding-left: 0.6rem;
+}
+
+/* ==========================================================================
+   Scrollbar
+   ========================================================================== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ifm-color-emphasis-300) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--ifm-color-emphasis-400);
+  background-clip: content-box;
 }

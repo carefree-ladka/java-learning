@@ -1,22 +1,32 @@
 ---
 id: index
-title: Modern Java (8+)
+title: Modern Java (8 → 27)
 sidebar_label: Overview
 sidebar_position: 0
 slug: /java-8-plus/
-description: Lambdas, functional interfaces, the Stream API, Optional, records, sealed classes, pattern matching, and virtual threads.
+description: Lambdas, streams, Optional, records, sealed classes, pattern matching, virtual threads, sequenced collections, scoped values — modern Java all the way through JDK 27.
 ---
 
-# Modern Java (8+)
+# Modern Java (8 → 27)
 
-From Java 8 onward the language became far more expressive. Modern Spring code is
-lambda- and stream-heavy, records are the default DTO, and virtual threads are
-reshaping how backends handle concurrency.
+From Java 8 onward the language became far more expressive, and it keeps evolving
+on a strict six-month cadence. Modern Spring code is lambda- and stream-heavy,
+records are the default DTO, pattern matching replaces instanceof ladders, and
+virtual threads have reshaped how backends handle concurrency.
+
+<Note title="Which version should I target?">
+  **Java 25** is the current Long-Term Support (LTS) release (September 2025)
+  and the right default for production. **Java 27** (September 2026) is the
+  latest feature release but is non-LTS — great for trying new APIs, supported
+  only until the next feature release. The next LTS is **Java 29** (September
+  2027). This site is current through **JDK 27**.
+</Note>
 
 <ProgressTracker id="java8-overview" />
 
 ## Table of Contents
 
+- [Version history at a glance](#version-history-at-a-glance)
 - [Lambda expressions](#lambda-expressions)
 - [Functional interfaces](#functional-interfaces)
 - [Method references](#method-references)
@@ -24,10 +34,35 @@ reshaping how backends handle concurrency.
 - [Records](#records)
 - [Sealed classes](#sealed-classes)
 - [Pattern matching & switch expressions](#pattern-matching--switch-expressions)
+- [Record patterns](#record-patterns)
+- [Text blocks](#text-blocks)
+- [Sequenced collections](#sequenced-collections)
+- [Unnamed variables and patterns](#unnamed-variables-and-patterns)
 - [Virtual threads](#virtual-threads)
+- [Scoped values & structured concurrency](#scoped-values--structured-concurrency)
+- [What's new in JDK 27](#whats-new-in-jdk-27)
 - [Topics in this section](#topics-in-this-section)
 - [Most Asked Interview Questions](#most-asked-interview-questions)
 - [Things You Should Know](#things-you-should-know)
+
+## Version history at a glance
+
+A backend engineer's shortlist of what shipped when. Bold rows are LTS releases.
+
+| Version | Year | Headline features                                                                                              |
+| ------- | ---- | -------------------------------------------------------------------------------------------------------------- |
+| **8**   | 2014 | Lambdas, Stream API, `Optional`, default methods, `java.time`                                                  |
+| 9       | 2017 | Modules (JPMS), `List/Set/Map.of(...)` factory methods                                                         |
+| 10      | 2018 | `var` — local variable type inference                                                                          |
+| **11**  | 2018 | `HttpClient`, `String` helpers (`isBlank`, `strip`, `repeat`), run single-file sources                         |
+| 14      | 2020 | `switch` expressions (final), helpful `NullPointerException` messages                                          |
+| 15      | 2020 | Text blocks (final)                                                                                            |
+| 16      | 2021 | Records (final), pattern matching for `instanceof` (final)                                                     |
+| **17**  | 2021 | Sealed classes (final)                                                                                         |
+| **21**  | 2023 | Virtual threads, pattern matching for `switch`, record patterns, sequenced collections                         |
+| 22      | 2024 | Unnamed variables & patterns `_` (final)                                                                       |
+| **25**  | 2025 | Scoped values, module import declarations, compact source files + instance `main`, flexible constructor bodies |
+| 27      | 2026 | G1 default everywhere, compact object headers by default, post-quantum TLS, JFR redaction                      |
 
 ## Lambda expressions
 
@@ -45,14 +80,14 @@ list.forEach(item -> process(item));
 An interface with exactly one abstract method. The `java.util.function` package
 ships the essentials:
 
-| Interface | Signature | Use |
-| --- | --- | --- |
-| `Predicate<T>` | `T -> boolean` | filtering, conditions |
-| `Function<T,R>` | `T -> R` | transformation/mapping |
-| `Consumer<T>` | `T -> void` | side effects |
-| `Supplier<T>` | `() -> T` | lazy creation |
-| `BiFunction<T,U,R>` | `(T,U) -> R` | two-arg transform |
-| `UnaryOperator<T>` | `T -> T` | same-type transform |
+| Interface           | Signature      | Use                    |
+| ------------------- | -------------- | ---------------------- |
+| `Predicate<T>`      | `T -> boolean` | filtering, conditions  |
+| `Function<T,R>`     | `T -> R`       | transformation/mapping |
+| `Consumer<T>`       | `T -> void`    | side effects           |
+| `Supplier<T>`       | `() -> T`      | lazy creation          |
+| `BiFunction<T,U,R>` | `(T,U) -> R`   | two-arg transform      |
+| `UnaryOperator<T>`  | `T -> T`       | same-type transform    |
 
 ```java
 Predicate<User> isActive = User::isActive;
@@ -89,15 +124,16 @@ User user = findByEmail(email)
 ```
 
 <Warning>
-Use `Optional` for **return types**, not fields or method parameters. Don't call
-`.get()` without checking — use `map`/`orElse`/`orElseThrow`. And never wrap a
-collection in `Optional`; return an empty collection instead.
+  Use `Optional` for **return types**, not fields or method parameters. Don't
+  call `.get()` without checking — use `map`/`orElse`/`orElseThrow`. And never
+  wrap a collection in `Optional`; return an empty collection instead.
 </Warning>
 
 ## Records
 
 Immutable data carriers with generated constructor, accessors, `equals`,
-`hashCode`, and `toString`. The default for DTOs and value objects.
+`hashCode`, and `toString`. Final since Java 16 and the default for DTOs and
+value objects.
 
 ```java
 public record OrderDto(Long id, String status, BigDecimal total) { }
@@ -113,7 +149,7 @@ public record Email(String value) {
 ## Sealed classes
 
 Restrict which types may extend/implement a type — perfect for modeling a closed
-set of variants that pattern matching can exhaustively check.
+set of variants that pattern matching can exhaustively check. Final since Java 17.
 
 ```java
 public sealed interface PaymentResult
@@ -125,6 +161,8 @@ public record Pending(String ref) implements PaymentResult { }
 ```
 
 ## Pattern matching & switch expressions
+
+Pattern matching for `switch` became final in Java 21.
 
 ```java
 String describe(PaymentResult result) {
@@ -144,11 +182,76 @@ if (obj instanceof String s && !s.isBlank()) {
 }
 ```
 
+## Record patterns
+
+Record patterns (final in Java 21) destructure records directly in `instanceof`
+and `switch`, including nested records.
+
+```java
+record Point(int x, int y) { }
+record Line(Point from, Point to) { }
+
+String render(Object shape) {
+    return switch (shape) {
+        case Point(int x, int y)                 -> "point " + x + "," + y;
+        case Line(Point(var x1, var y1),
+                  Point(var x2, var y2))         -> "line";   // nested destructuring
+        default                                  -> "unknown";
+    };
+}
+```
+
+## Text blocks
+
+Multi-line string literals (final in Java 15) — ideal for SQL, JSON, and HTML
+without escape-sequence noise.
+
+```java
+String sql = """
+    SELECT id, email, status
+    FROM users
+    WHERE status = ?
+    ORDER BY created_at DESC
+    """;
+```
+
+## Sequenced collections
+
+Java 21 added `SequencedCollection`, `SequencedSet`, and `SequencedMap`: a uniform
+API for ordered collections with `getFirst()`, `getLast()`, `addFirst()`,
+`addLast()`, and `reversed()` across `List`, `Deque`, and `LinkedHashSet`/`Map`.
+
+```java
+List<String> names = new ArrayList<>(List.of("a", "b", "c"));
+names.getFirst();          // "a"  (no more get(0))
+names.getLast();           // "c"
+names.reversed();          // [c, b, a]
+```
+
+## Unnamed variables and patterns
+
+The underscore `_` (final in Java 22) marks a variable or pattern binding you must
+declare but never use — clearer intent, no "unused" warnings.
+
+```java
+// Unused exception variable
+try {
+    return Integer.parseInt(s);
+} catch (NumberFormatException _) {
+    return 0;
+}
+
+// Unused pattern component
+if (point instanceof Point(int x, _)) {   // only need x
+    use(x);
+}
+```
+
 ## Virtual threads
 
-Virtual threads (Java 21) are lightweight threads managed by the JVM. You can run
-millions of them, so the "one thread per request" model scales without async
-complexity — ideal for I/O-bound backends.
+Virtual threads (final in Java 21) are lightweight threads managed by the JVM. You
+can run millions of them, so the "one thread per request" model scales without
+async complexity — ideal for I/O-bound backends.
 
 ```java
 try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -157,9 +260,63 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 ```
 
 <Backend>
-Virtual threads make blocking JDBC/HTTP calls scalable again: a blocked virtual
-thread parks and frees its carrier OS thread. In Spring Boot 3.2+ you enable them
-with `spring.threads.virtual.enabled=true`.
+  Virtual threads make blocking JDBC/HTTP calls scalable again: a blocked
+  virtual thread parks and frees its carrier OS thread. In Spring Boot 3.2+ you
+  enable them with `spring.threads.virtual.enabled=true`.
+</Backend>
+
+## Scoped values & structured concurrency
+
+`ScopedValue` (final in Java 25) is the modern, immutable replacement for
+`ThreadLocal`: a value bound for the duration of a call, safely inherited by child
+tasks and perfect for virtual threads.
+
+```java
+private static final ScopedValue<String> REQUEST_ID = ScopedValue.newInstance();
+
+ScopedValue.where(REQUEST_ID, requestId).run(() -> handleRequest());
+// deeper in the stack:
+String id = REQUEST_ID.get();
+```
+
+**Structured concurrency** treats a group of concurrent subtasks as a single unit
+of work — if one fails, the rest are cancelled, and the parent waits for all of
+them. It remains a preview through JDK 27 (seventh preview, JEP 533).
+
+```java
+// Preview API — requires --enable-preview
+try (var scope = StructuredTaskScope.open()) {
+    var user  = scope.fork(() -> loadUser(id));
+    var orders = scope.fork(() -> loadOrders(id));
+    scope.join();                       // wait for both; propagate failure
+    return new Dashboard(user.get(), orders.get());
+}
+```
+
+## What's new in JDK 27
+
+JDK 27 (September 15, 2026) is a non-LTS release with nine JEPs. Notably, it adds
+no new language syntax — the four finalized features change JVM/security defaults
+and need **zero code changes**.
+
+| JEP | Feature                                             | Status    | Effect                                                                     |
+| --- | --------------------------------------------------- | --------- | -------------------------------------------------------------------------- |
+| 523 | G1 as the default GC everywhere                     | Final     | G1 is chosen even on 1-CPU / low-memory containers (was Serial)            |
+| 534 | Compact object headers by default                   | Final     | Object header shrinks 96 → 64 bits; less heap for small-object-heavy apps  |
+| 527 | Post-quantum hybrid key exchange for TLS 1.3        | Final     | `X25519MLKEM768` offered first — quantum-safe handshakes, transparently    |
+| 536 | JFR in-process data redaction                       | Final     | Flight-recording data (passwords, secrets) shown as `[REDACTED]`           |
+| 531 | Lazy constants                                      | Preview   | `Set.ofLazy()`; deferred, thread-safe initialization                       |
+| 532 | Primitive types in patterns, `instanceof`, `switch` | Preview   | Pattern-match on `int`, `long`, etc.                                       |
+| 533 | Structured concurrency                              | Preview   | `join()` now throws `ExecutionException`; adds an exception type parameter |
+| 538 | PEM encodings of cryptographic objects              | Preview   | `PEM` becomes a class; read/write keys and certs in PEM                    |
+| 537 | Vector API                                          | Incubator | SIMD computations; waiting on Project Valhalla                             |
+
+<Backend>
+  The two defaults you'll feel in production without touching code: **compact
+  object headers** (JEP 534) cut heap for services with many small objects — one
+  JEP benchmark saw ~22% less heap — and **G1 everywhere** (JEP 523) changes GC
+  behavior in small single-CPU containers. If a tiny service ran better on
+  Serial, opt back in with `-XX:+UseSerialGC`.
 </Backend>
 
 ## Topics in this section
@@ -168,40 +325,60 @@ with `spring.threads.virtual.enabled=true`.
   <Link className="jbm-card" to="/docs/java-8-plus/streams">
     <div className="jbm-card__icon">🌊</div>
     <h3>Stream API Deep Dive</h3>
-    <p>map, filter, flatMap, reduce, collect, groupingBy, and when NOT to use streams.</p>
+
+    map, filter, flatMap, reduce, collect, groupingBy, and when NOT to use streams.
+
   </Link>
 </div>
 
 ## Most Asked Interview Questions
 
 ### Beginner
+
 - What is a lambda and a functional interface?
 - What problem does `Optional` solve?
+- Which Java version is the current LTS, and why does LTS matter?
 
 ### Intermediate
+
 - `map` vs `flatMap`?
 - What are records and what do they generate?
 - Intermediate vs terminal stream operations?
+- What are sequenced collections and why were they added?
 
 ### Advanced
+
 - How do sealed classes enable exhaustive pattern matching?
 - How do virtual threads differ from platform threads?
+- `ScopedValue` vs `ThreadLocal` — why is the former better for virtual threads?
+- What changed in JDK 27 that affects running apps without a recompile?
 
 ### Coding
+
 - Group a list of orders by status and sum totals using `Collectors`.
+- Destructure a nested record with a record pattern in a `switch`.
 
 ## Things You Should Know
 
 ### 🔴 Must Know
+
 - Lambdas, the four core functional interfaces, method references.
 - `Optional` for return types.
 - Records for DTOs/value objects.
 - Basic Stream pipeline.
+- Virtual threads and the thread-per-request model.
 
 ### 🟡 Good to Know
-- Sealed classes + pattern-matching switch.
-- Virtual threads and `spring.threads.virtual.enabled`.
+
+- Sealed classes + pattern-matching switch, record patterns.
+- Text blocks for SQL/JSON.
+- Sequenced collections (`getFirst`/`getLast`/`reversed`).
+- `spring.threads.virtual.enabled` in Spring Boot.
+- The LTS cadence: 17 → 21 → 25 → 29.
 
 ### 🟢 Nice to Know
+
 - `Collectors.teeing`, custom collectors.
-- Structured concurrency (preview).
+- Unnamed variables and patterns (`_`).
+- `ScopedValue` and structured concurrency (preview).
+- JDK 27 runtime defaults: compact object headers, G1 everywhere, post-quantum TLS.

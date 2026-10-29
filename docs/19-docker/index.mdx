@@ -48,14 +48,14 @@ docker image ls                           # list images
 ## A multi-stage Dockerfile
 
 <Important>
-Use **multi-stage builds**: compile with a full JDK in a build stage, then copy only
-the artifact into a slim JRE runtime image. This keeps the final image small and
-removes build tools (smaller attack surface).
+  Use **multi-stage builds**: compile with a full JDK in a build stage, then
+  copy only the artifact into a slim JRE runtime image. This keeps the final
+  image small and removes build tools (smaller attack surface).
 </Important>
 
 ```dockerfile title="Dockerfile"
 # ---- Build stage ----
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
@@ -64,7 +64,7 @@ COPY src ./src
 RUN ./mvnw -q clean package -DskipTests
 
 # ---- Runtime stage ----
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 # Run as a non-root user for security
 RUN useradd -r -u 1001 appuser
@@ -75,9 +75,9 @@ ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
 ```
 
 <Tip>
-Copy `pom.xml` and download dependencies *before* copying source. Docker caches
-layers, so unchanged dependencies aren't re-downloaded on every code change — much
-faster rebuilds.
+  Copy `pom.xml` and download dependencies *before* copying source. Docker
+  caches layers, so unchanged dependencies aren't re-downloaded on every code
+  change — much faster rebuilds.
 </Tip>
 
 ## Environment configuration
@@ -94,9 +94,9 @@ docker run -p 8080:8080 \
 ```
 
 <Warning>
-Never bake secrets into an image (they persist in layers). Inject them at runtime via
-environment variables or a secrets manager, and never commit `.env` files with real
-credentials.
+  Never bake secrets into an image (they persist in layers). Inject them at
+  runtime via environment variables or a secrets manager, and never commit
+  `.env` files with real credentials.
 </Warning>
 
 ## Volumes & networks
@@ -137,7 +137,7 @@ services:
       POSTGRES_DB: shop
       POSTGRES_USER: shop
       POSTGRES_PASSWORD: secret
-    volumes: ["pgdata:/var/lib/postgresql/data"]   # persist data
+    volumes: ["pgdata:/var/lib/postgresql/data"] # persist data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U shop"]
       interval: 5s
@@ -160,42 +160,48 @@ docker compose down        # stop (add -v to also remove volumes)
 ## Common mistakes
 
 <Warning>
-- Basing the runtime image on a full JDK (bloated, insecure). Use a JRE stage.
-- Running as root inside the container.
-- Not setting `MaxRAMPercentage` — the JVM may ignore the container memory limit and
-  get OOM-killed.
-- Storing database data without a volume (lost on restart).
-- Using `localhost` between containers instead of the service name.
+  - Basing the runtime image on a full JDK (bloated, insecure). Use a JRE stage.
+  - Running as root inside the container. - Not setting `MaxRAMPercentage` — the
+  JVM may ignore the container memory limit and get OOM-killed. - Storing
+  database data without a volume (lost on restart). - Using `localhost` between
+  containers instead of the service name.
 </Warning>
 
 ## Most Asked Interview Questions
 
 ### Beginner
+
 - Image vs container?
 - What does a Dockerfile do?
 
 ### Intermediate
+
 - What is a multi-stage build and why use it?
 - How do containers communicate in Compose?
 
 ### Advanced
+
 - How do you make the JVM respect container memory limits?
 - How do you handle secrets and persistent data?
 
 ### Coding
+
 - Write a multi-stage Dockerfile and a Compose file for app + Postgres.
 
 ## Things You Should Know
 
 ### 🔴 Must Know
+
 - Images vs containers; core commands.
 - Multi-stage build with a slim JRE.
 - Env-var config; volumes for data; service-name networking.
 
 ### 🟡 Good to Know
+
 - `MaxRAMPercentage` / container-aware JVM.
 - Layer caching for fast rebuilds; non-root user.
 
 ### 🟢 Nice to Know
+
 - `bootBuildImage`/Buildpacks and distroless images.
 - Health checks and `depends_on` conditions.

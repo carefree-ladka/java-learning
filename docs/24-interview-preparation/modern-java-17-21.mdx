@@ -1,15 +1,17 @@
 ---
 id: modern-java-17-21
-title: "Modern Java 17–21 (Q293–306)"
-sidebar_label: ✨ Modern Java (17–21)
+title: "Modern Java 17 → 27 (Q293–306)"
+sidebar_label: ✨ Modern Java (17 → 27)
 sidebar_position: 5
-description: Interview questions on modern Java (17–21) — virtual threads, records, pattern matching, sealed types, sequenced collections, text blocks, and switch expressions.
+description: Interview questions on modern Java (17 → 27) — virtual threads, records, pattern matching, sealed types, sequenced collections, scoped values, text blocks, and JDK 27 runtime changes.
 ---
 
-# Modern Java 17–21 (Q293–306)
+# Modern Java 17 → 27 (Q293–306)
 
-Recent LTS releases (17 and 21) changed how backend Java is written. Interviewers
-increasingly expect familiarity with virtual threads, records, and pattern matching.
+Recent LTS releases (17, 21, and 25) changed how backend Java is written.
+Interviewers increasingly expect familiarity with virtual threads, records,
+pattern matching, and — more recently — scoped values and the JDK 27 runtime
+defaults. Java 25 is the current LTS; Java 27 is the latest feature release.
 
 <ProgressTracker id="iq-modern-java" />
 
@@ -46,9 +48,11 @@ Deconstruct a record directly in `instanceof`/`switch`:
 Java 21 `SequencedCollection` methods for first/last access and `reversed()` — a uniform
 API across `List`, `Deque`, and `LinkedHashSet`.
 
-**300. String templates (preview).**
-Embedded expressions in strings with a processor (`STR."Hello \{name}"`) for safe
-interpolation. Preview — API may change.
+**300. What happened to string templates?**
+Previewed in Java 21–22 (`STR."Hello \{name}"`), then **withdrawn** for a redesign —
+they are _not_ available in JDK 23–27. Until a new proposal lands, use
+`String.format`, `formatted`, or a `StringBuilder`. Mentioning that you know they
+were pulled signals you follow the language closely.
 
 **301. Sequenced collections.**
 Java 21 interfaces (`SequencedCollection`/`SequencedMap`) giving a defined encounter order
@@ -73,6 +77,38 @@ exhaustive pattern-matching switches. See [sealed classes](/docs/java-8-plus/#se
 **306. Pattern matching for `instanceof`.**
 `if (o instanceof String s)` tests and binds in one step, removing the explicit cast. See
 [pattern matching](/docs/java-8-plus/#pattern-matching--switch-expressions).
+
+## Java 22 → 27 highlights
+
+**What are unnamed variables and patterns (`_`)?**
+Final in Java 22. Use `_` for a required-but-unused binding — an ignored catch
+variable (`catch (IOException _)`) or an unused record component
+(`case Point(int x, _)`). Removes "unused variable" noise and states intent.
+
+**What is `ScopedValue` and why prefer it over `ThreadLocal`?**
+Final in Java 25. An immutable value bound for the dynamic scope of a call and
+safely visible to child tasks. Unlike `ThreadLocal`, it can't be mutated mid-scope
+and is cheap to inherit across the millions of virtual threads a server may spawn.
+See [scoped values](/docs/java-8-plus/#scoped-values--structured-concurrency).
+
+**What are compact source files and instance `main` methods (Java 25)?**
+A beginner-friendly on-ramp: a source file can skip the class/`public static` boilerplate
+and declare `void main()` plus top-level members, with `IO.println(...)` for console I/O.
+
+**Is structured concurrency available yet?**
+Still a preview through JDK 27 (seventh preview, JEP 533). `StructuredTaskScope`
+runs subtasks as one unit — if one fails the rest are cancelled. In JDK 27 `join()`
+throws `ExecutionException`. Needs `--enable-preview`.
+
+**Name a few JDK 27 changes that affect apps with no code change.**
+Compact object headers on by default (96 → 64-bit headers, less heap), G1 as the
+default GC even on 1-CPU/low-memory containers, post-quantum hybrid key exchange
+in TLS 1.3 (`X25519MLKEM768` offered first), and JFR data redaction. See
+[What's new in JDK 27](/docs/java-8-plus/#whats-new-in-jdk-27).
+
+**What's the LTS/non-LTS cadence?**
+A feature release every 6 months; an LTS every 2 years. LTS line so far:
+17 → 21 → 25 → **29 (Sept 2027)**. Java 27 is a non-LTS feature release.
 
 ---
 
