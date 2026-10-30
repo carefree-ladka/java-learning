@@ -2,7 +2,7 @@
 id: auto-configuration
 title: Auto-Configuration Internals
 sidebar_label: Auto-Configuration
-sidebar_position: 1
+sidebar_position: 2
 description: How Spring Boot auto-configuration works — conditional beans, the imports file, back-off, starters, and how to inspect and override it.
 ---
 
@@ -46,13 +46,13 @@ flowchart TD
 
 Auto-configuration is built on `@Conditional` annotations:
 
-| Annotation | Applies the bean when... |
-| --- | --- |
-| `@ConditionalOnClass` | a class is on the classpath |
-| `@ConditionalOnMissingBean` | you haven't defined that bean yourself |
-| `@ConditionalOnProperty` | a property has a given value |
-| `@ConditionalOnBean` | another bean exists |
-| `@ConditionalOnWebApplication` | it's a web app |
+| Annotation                     | Applies the bean when...               |
+| ------------------------------ | -------------------------------------- |
+| `@ConditionalOnClass`          | a class is on the classpath            |
+| `@ConditionalOnMissingBean`    | you haven't defined that bean yourself |
+| `@ConditionalOnProperty`       | a property has a given value           |
+| `@ConditionalOnBean`           | another bean exists                    |
+| `@ConditionalOnWebApplication` | it's a web app                         |
 
 ```java
 @AutoConfiguration
@@ -68,10 +68,10 @@ public class DataSourceAutoConfiguration {
 ```
 
 <Important>
-The two conditions that explain 90% of auto-config behavior:
-`@ConditionalOnClass` ("the library is present, so configure it") and
-`@ConditionalOnMissingBean` ("only if the developer hasn't provided their own"). Together
-they give you working defaults that you can always override.
+  The two conditions that explain 90% of auto-config behavior:
+  `@ConditionalOnClass` ("the library is present, so configure it") and
+  `@ConditionalOnMissingBean` ("only if the developer hasn't provided their
+  own"). Together they give you working defaults that you can always override.
 </Important>
 
 ## The imports file
@@ -89,10 +89,10 @@ was the `spring.factories` file under `EnableAutoConfiguration`.)
 ## Back-off: your beans win
 
 <Important>
-Auto-configuration **backs off** whenever you provide your own bean. Define your own
-`DataSource` `@Bean` and Boot's `@ConditionalOnMissingBean` skips its default. This is
-why Spring Boot is opinionated but never in your way — your explicit configuration always
-takes precedence.
+  Auto-configuration **backs off** whenever you provide your own bean. Define
+  your own `DataSource` `@Bean` and Boot's `@ConditionalOnMissingBean` skips its
+  default. This is why Spring Boot is opinionated but never in your way — your
+  explicit configuration always takes precedence.
 </Important>
 
 ```java
@@ -136,9 +136,9 @@ GET /actuator/beans             # every bean in the context
 ```
 
 <Tip>
-When a bean you expected isn't there (or one you didn't expect is), turn on `debug=true`
-and read the **CONDITIONS EVALUATION REPORT**. It tells you exactly which condition
-failed — far faster than guessing.
+  When a bean you expected isn't there (or one you didn't expect is), turn on
+  `debug=true` and read the **CONDITIONS EVALUATION REPORT**. It tells you
+  exactly which condition failed — far faster than guessing.
 </Tip>
 
 ## Writing your own auto-configuration
@@ -165,12 +165,13 @@ by adding the dependency.
 ## Common mistakes
 
 <Warning>
-- Assuming a bean exists without checking conditions — a missing classpath library
-  silently skips its auto-config.
-- Defining a conflicting bean and being surprised auto-config backed off (that's correct).
-- Component-scanning your auto-configuration class (it should be triggered via the imports
-  file, not scanned) — can cause ordering issues.
-- Forgetting `@ConditionalOnMissingBean`, so your library forces its bean and can't be overridden.
+  - Assuming a bean exists without checking conditions — a missing classpath
+  library silently skips its auto-config. - Defining a conflicting bean and
+  being surprised auto-config backed off (that's correct). - Component-scanning
+  your auto-configuration class (it should be triggered via the imports file,
+  not scanned) — can cause ordering issues. - Forgetting
+  `@ConditionalOnMissingBean`, so your library forces its bean and can't be
+  overridden.
 </Warning>
 
 ## Interview questions
@@ -193,14 +194,17 @@ auto-configuration.
 ## Things You Should Know
 
 ### 🔴 Must Know
+
 - `@EnableAutoConfiguration` + conditional beans + the imports file.
 - `@ConditionalOnClass` and `@ConditionalOnMissingBean`; back-off behavior.
 - Starters trigger auto-config via the classpath.
 
 ### 🟡 Good to Know
+
 - `debug=true` / `/actuator/conditions` to inspect matches.
 - Writing a custom auto-configuration for shared libraries.
 
 ### 🟢 Nice to Know
+
 - `spring.factories` (pre-2.7) vs `AutoConfiguration.imports`.
 - `@AutoConfigureBefore`/`@AutoConfigureAfter` ordering.

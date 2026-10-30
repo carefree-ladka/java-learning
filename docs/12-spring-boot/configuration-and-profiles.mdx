@@ -2,7 +2,7 @@
 id: configuration-and-profiles
 title: Configuration & Profiles
 sidebar_label: Configuration & Profiles
-sidebar_position: 2
+sidebar_position: 3
 description: Externalized configuration in Spring Boot — property sources and precedence, @ConfigurationProperties, profiles, environment variables, and secrets.
 ---
 
@@ -40,9 +40,10 @@ flowchart TD
 ```
 
 <Important>
-Precedence lets you set a default in `application.yml`, override it per environment with a
-profile file, and override *that* at deploy time with an environment variable or
-command-line arg — without recompiling. This is the backbone of 12-factor configuration.
+  Precedence lets you set a default in `application.yml`, override it per
+  environment with a profile file, and override *that* at deploy time with an
+  environment variable or command-line arg — without recompiling. This is the
+  backbone of 12-factor configuration.
 </Important>
 
 ## @Value vs @ConfigurationProperties
@@ -54,9 +55,10 @@ private Duration timeout;
 ```
 
 <Warning>
-`@Value` is fine for a one-off, but for anything with multiple related keys prefer
-`@ConfigurationProperties` — it's type-safe, validated, refactor-friendly, and groups
-related settings. Scattered `@Value` strings are a maintenance headache.
+  `@Value` is fine for a one-off, but for anything with multiple related keys
+  prefer `@ConfigurationProperties` — it's type-safe, validated,
+  refactor-friendly, and groups related settings. Scattered `@Value` strings are
+  a maintenance headache.
 </Warning>
 
 ## Type-safe configuration properties
@@ -94,9 +96,10 @@ class PaymentService {
 ```
 
 <Tip>
-`@Validated` on a `@ConfigurationProperties` class makes the app **fail fast at startup**
-if config is missing or invalid — far better than a `NullPointerException` in production.
-Boot also converts types (`Duration`, `DataSize`, enums, lists) for free.
+  `@Validated` on a `@ConfigurationProperties` class makes the app **fail fast
+  at startup** if config is missing or invalid — far better than a
+  `NullPointerException` in production. Boot also converts types (`Duration`,
+  `DataSize`, enums, lists) for free.
 </Tip>
 
 ## Profiles
@@ -106,15 +109,14 @@ Profiles activate different beans and property values per environment.
 ```yaml title="application.yml (multi-document)"
 spring:
   jpa:
-    show-sql: true          # default (dev-friendly)
-
+    show-sql: true # default (dev-friendly)
 ---
 spring:
   config:
     activate:
       on-profile: prod
   jpa:
-    show-sql: false         # quiet in prod
+    show-sql: false # quiet in prod
 ```
 
 ```java
@@ -154,28 +156,29 @@ docker run -e SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/shop \
 ## Secrets
 
 <Warning>
-Never commit real secrets in `application.yml` or bake them into an image (they persist
-in layers and git history). Inject them at runtime:
-- Environment variables (`SPRING_DATASOURCE_PASSWORD`).
-- A secrets manager: AWS Secrets Manager, HashiCorp Vault (Spring Cloud Vault),
-  Kubernetes Secrets mounted as env vars or files.
-- Reference them via placeholders: `password: ${DB_PASSWORD}` (fails fast if unset).
+  Never commit real secrets in `application.yml` or bake them into an image
+  (they persist in layers and git history). Inject them at runtime: -
+  Environment variables (`SPRING_DATASOURCE_PASSWORD`). - A secrets manager: AWS
+  Secrets Manager, HashiCorp Vault (Spring Cloud Vault), Kubernetes Secrets
+  mounted as env vars or files. - Reference them via placeholders: `password: $
+  {DB_PASSWORD}` (fails fast if unset).
 </Warning>
 
 ```yaml
 spring:
   datasource:
-    password: ${DB_PASSWORD}     # sourced from the environment/secret store, not the file
+    password: ${DB_PASSWORD} # sourced from the environment/secret store, not the file
 ```
 
 ## Common mistakes
 
 <Warning>
-- Hard-coding secrets or environment-specific URLs in committed config.
-- Overusing `@Value` where `@ConfigurationProperties` would be safer.
-- Forgetting `@Validated`, so bad config surfaces as a runtime NPE, not a startup failure.
-- Assuming a profile is active — always log the active profiles on startup.
-- Using `ddl-auto: update` in prod instead of Flyway/Liquibase migrations.
+  - Hard-coding secrets or environment-specific URLs in committed config. -
+  Overusing `@Value` where `@ConfigurationProperties` would be safer. -
+  Forgetting `@Validated`, so bad config surfaces as a runtime NPE, not a
+  startup failure. - Assuming a profile is active — always log the active
+  profiles on startup. - Using `ddl-auto: update` in prod instead of
+  Flyway/Liquibase migrations.
 </Warning>
 
 ## Interview questions
@@ -198,14 +201,17 @@ In the environment or a secrets manager, injected at runtime — never in code o
 ## Things You Should Know
 
 ### 🔴 Must Know
+
 - Property-source precedence (args > env > profile file > application.yml).
 - `@ConfigurationProperties` + `@Validated` for type-safe, fail-fast config.
 - Profiles for per-environment beans/values.
 
 ### 🟡 Good to Know
+
 - Relaxed binding of env vars; placeholder defaults `${X:default}`.
 - Secrets via env/Vault/K8s, never committed.
 
 ### 🟢 Nice to Know
+
 - `spring.config.import` for external/remote config; Spring Cloud Config.
 - Config metadata for IDE autocompletion.

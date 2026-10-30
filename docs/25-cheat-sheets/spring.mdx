@@ -10,81 +10,230 @@ description: The Spring Boot annotations you use daily, grouped by concern.
 
 <ProgressTracker id="cheat-spring" />
 
+<Tip>
+  For the explained, snippet-first version of everything below — IoC/DI, binding
+  properties, JPA/Hibernate, validation, and global error handling — see [Spring
+  Boot Essentials](/docs/spring-boot/essentials/).
+</Tip>
+
 ## Bootstrapping & config
 
-| Annotation | Purpose |
-| --- | --- |
-| `@SpringBootApplication` | Config + auto-config + component scan |
-| `@Configuration` | Class of `@Bean` definitions |
-| `@Bean` | Declare a bean from a method |
-| `@ComponentScan` | Where to scan for components |
-| `@ConfigurationProperties` | Bind `application.yml` to a type |
-| `@Profile("prod")` | Activate beans per profile |
-| `@Value("${...}")` | Inject a single property |
+| Annotation                 | Purpose                               |
+| -------------------------- | ------------------------------------- |
+| `@SpringBootApplication`   | Config + auto-config + component scan |
+| `@Configuration`           | Class of `@Bean` definitions          |
+| `@Bean`                    | Declare a bean from a method          |
+| `@ComponentScan`           | Where to scan for components          |
+| `@ConfigurationProperties` | Bind `application.yml` to a type      |
+| `@Profile("prod")`         | Activate beans per profile            |
+| `@Value("${...}")`         | Inject a single property              |
+
+```java
+@SpringBootApplication
+@ConfigurationPropertiesScan
+public class ShopApplication {
+    public static void main(String[] a) { SpringApplication.run(ShopApplication.class, a); }
+}
+
+@ConfigurationProperties(prefix = "app.payments")   // binds app.payments.* from yml
+record PaymentProps(String baseUrl, Duration timeout, int retries) {}
+
+@Configuration
+class ClientConfig {
+    @Bean RestClient payments(RestClient.Builder b,
+                              @Value("${app.payments.base-url}") String url) {
+        return b.baseUrl(url).build();
+    }
+}
+```
 
 ## Stereotypes & DI
 
-| Annotation | Purpose |
-| --- | --- |
-| `@Component` | Generic managed bean |
-| `@Service` | Business-logic bean |
-| `@Repository` | Data-access bean (+ exception translation) |
-| `@Controller` / `@RestController` | Web layer |
-| `@Autowired` | Inject (prefer constructor injection) |
-| `@Qualifier` / `@Primary` | Disambiguate multiple candidates |
+| Annotation                        | Purpose                                    |
+| --------------------------------- | ------------------------------------------ |
+| `@Component`                      | Generic managed bean                       |
+| `@Service`                        | Business-logic bean                        |
+| `@Repository`                     | Data-access bean (+ exception translation) |
+| `@Controller` / `@RestController` | Web layer                                  |
+| `@Autowired`                      | Inject (prefer constructor injection)      |
+| `@Qualifier` / `@Primary`         | Disambiguate multiple candidates           |
+
+```java
+@Service
+class OrderService {
+    private final PaymentGateway gateway;            // final + explicit
+    // Single constructor → no @Autowired needed
+    OrderService(@Qualifier("stripe") PaymentGateway gateway) { this.gateway = gateway; }
+}
+```
 
 ## Web / REST
 
-| Annotation | Purpose |
-| --- | --- |
-| `@RequestMapping` | Base path / method mapping |
-| `@GetMapping` `@PostMapping` `@PutMapping` `@PatchMapping` `@DeleteMapping` | HTTP verbs |
-| `@PathVariable` | Bind URI segment |
-| `@RequestParam` | Bind query param |
-| `@RequestBody` | Bind/deserialize JSON body |
-| `@RequestHeader` | Bind a header |
-| `@ResponseStatus` | Fixed status code |
-| `@Valid` | Trigger Bean Validation |
-| `@RestControllerAdvice` / `@ExceptionHandler` | Global error handling |
+| Annotation                                                                  | Purpose                    |
+| --------------------------------------------------------------------------- | -------------------------- |
+| `@RequestMapping`                                                           | Base path / method mapping |
+| `@GetMapping` `@PostMapping` `@PutMapping` `@PatchMapping` `@DeleteMapping` | HTTP verbs                 |
+| `@PathVariable`                                                             | Bind URI segment           |
+| `@RequestParam`                                                             | Bind query param           |
+| `@RequestBody`                                                              | Bind/deserialize JSON body |
+| `@RequestHeader`                                                            | Bind a header              |
+| `@ResponseStatus`                                                           | Fixed status code          |
+| `@Valid`                                                                    | Trigger Bean Validation    |
+| `@RestControllerAdvice` / `@ExceptionHandler`                               | Global error handling      |
+
+```java
+@RestController
+@RequestMapping("/api/users")
+class UserController {
+    private final UserService service;
+    UserController(UserService service) { this.service = service; }
+
+    @PostMapping
+    ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
+    }
+
+    @GetMapping("/{id}")
+    UserResponse get(@PathVariable Long id) { return service.getById(id); }
+}
+
+@RestControllerAdvice                                // one place for all errors
+class GlobalExceptionHandler {
+    @ExceptionHandler(UserNotFoundException.class)
+    ProblemDetail notFound(UserNotFoundException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ProblemDetail invalid(MethodArgumentNotValidException ex) {
+        var errors = new HashMap<String, String>();
+        ex.getBindingResult().getFieldErrors()
+          .forEach(fe -> errors.put(fe.getField(), fe.getDefaultMessage()));
+        var pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setProperty("errors", errors);
+        return pd;
+    }
+}
+```
 
 ## Validation
 
 `@NotNull` `@NotBlank` `@NotEmpty` `@Size` `@Min` `@Max` `@Email` `@Positive`
 `@Pattern` `@Past` `@Future`.
 
+```java
+public record CreateUserRequest(
+    @NotBlank String name,
+    @Email @NotBlank String email,
+    @Min(18) int age,
+    @Size(min = 8, max = 72) String password
+) {}
+
+// Method-level validation on a service
+@Service @Validated
+class CouponService {
+    void apply(@NotBlank String code, @Positive BigDecimal amount) { }
+}
+```
+
 ## Data / JPA
 
-| Annotation | Purpose |
-| --- | --- |
-| `@Entity` / `@Table` | Map class to table |
-| `@Id` / `@GeneratedValue` | Primary key |
-| `@Column` | Column mapping |
-| `@ManyToOne` `@OneToMany` `@OneToOne` `@ManyToMany` | Relationships |
-| `@JoinColumn` / `mappedBy` | FK / inverse side |
-| `@Query` | JPQL or native query |
-| `@Transactional` | Transaction boundary |
-| `@Version` | Optimistic lock |
-| `@EntityGraph` | Fetch plan (avoid N+1) |
+| Annotation                                          | Purpose                |
+| --------------------------------------------------- | ---------------------- |
+| `@Entity` / `@Table`                                | Map class to table     |
+| `@Id` / `@GeneratedValue`                           | Primary key            |
+| `@Column`                                           | Column mapping         |
+| `@ManyToOne` `@OneToMany` `@OneToOne` `@ManyToMany` | Relationships          |
+| `@JoinColumn` / `mappedBy`                          | FK / inverse side      |
+| `@Query`                                            | JPQL or native query   |
+| `@Transactional`                                    | Transaction boundary   |
+| `@Version`                                          | Optimistic lock        |
+| `@EntityGraph`                                      | Fetch plan (avoid N+1) |
+
+```java
+@Entity @Table(name = "users")
+class User {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) Long id;
+    @Column(nullable = false, unique = true) String email;
+
+    @ManyToOne(fetch = FetchType.LAZY)              // default to LAZY
+    @JoinColumn(name = "org_id") Organization org;
+
+    @Version long version;                          // optimistic lock
+}
+
+interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);       // derived query
+
+    @EntityGraph(attributePaths = "org")            // fetch org → avoid N+1
+    @Query("select u from User u where u.active = true")
+    List<User> findActive();
+}
+
+@Service
+class UserService {
+    private final UserRepository repo;
+    UserService(UserRepository repo) { this.repo = repo; }
+
+    @Transactional                                  // write boundary on the service
+    User register(String email) { return repo.save(new User(email)); }
+
+    @Transactional(readOnly = true)
+    User get(Long id) { return repo.findById(id).orElseThrow(); }
+}
+```
 
 ## Security
 
-| Annotation | Purpose |
-| --- | --- |
-| `@EnableWebSecurity` | Enable Spring Security config |
-| `@EnableMethodSecurity` | Enable method-level rules |
-| `@PreAuthorize("hasRole('ADMIN')")` | Authorize a method |
+| Annotation                          | Purpose                       |
+| ----------------------------------- | ----------------------------- |
+| `@EnableWebSecurity`                | Enable Spring Security config |
+| `@EnableMethodSecurity`             | Enable method-level rules     |
+| `@PreAuthorize("hasRole('ADMIN')")` | Authorize a method            |
 
 ## Testing
 
-| Annotation | Purpose |
-| --- | --- |
-| `@SpringBootTest` | Full context integration test |
-| `@WebMvcTest` | Web-layer slice |
-| `@DataJpaTest` | JPA slice |
-| `@MockBean` / `@Mock` | Mock a bean / plain mock |
-| `@Testcontainers` / `@Container` | Real dependencies in Docker |
+| Annotation                       | Purpose                       |
+| -------------------------------- | ----------------------------- |
+| `@SpringBootTest`                | Full context integration test |
+| `@WebMvcTest`                    | Web-layer slice               |
+| `@DataJpaTest`                   | JPA slice                     |
+| `@MockBean` / `@Mock`            | Mock a bean / plain mock      |
+| `@Testcontainers` / `@Container` | Real dependencies in Docker   |
 
 ## Caching & scheduling
 
 `@EnableCaching` `@Cacheable` `@CacheEvict` `@CachePut` · `@EnableScheduling`
 `@Scheduled` · `@Async` `@EnableAsync`.
+
+```java
+@EnableScheduling @EnableAsync
+@SpringBootApplication
+class ShopApplication {}
+
+@Component
+class Jobs {
+    @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)   // 5 min after each run ends
+    void poll() {}
+
+    @Scheduled(cron = "0 0 2 * * *")                          // 02:00 daily
+    void nightly() {}
+
+    @Async                                                    // runs off the caller's thread
+    CompletableFuture<Void> sendEmail(String to) {
+        mail.send(to); return CompletableFuture.completedFuture(null);
+    }
+}
+
+@Service
+class ProductService {
+    @Cacheable("products")                                    // cache by argument
+    Product get(Long id) { return repo.findById(id).orElseThrow(); }
+
+    @CacheEvict(value = "products", key = "#p.id")            // invalidate on write
+    void update(Product p) { repo.save(p); }
+}
+```
+
+See [Scheduling & Async](/docs/spring-boot/scheduling-and-async/) for pools, cron
+syntax, and pitfalls.
